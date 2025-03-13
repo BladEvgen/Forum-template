@@ -1,0 +1,446 @@
+{% load static %}
+<!-- Header -->
+<header class="bg-gradient-to-r from-purple-900 to-purple-800 text-white shadow-md sticky top-0 z-50">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex justify-between h-16">
+    <!-- Logo and site name -->
+    <div class="flex items-center">
+        <a href="{% url 'home' %}" class="flex items-center space-x-2 group">
+        <i class="fas fa-globe-americas text-2xl text-purple-300 group-hover:text-white transition-colors duration-200"></i>
+        <span class="text-xl font-bold group-hover:text-white transition-colors duration-200">My Travel Blog</span>
+        </a>
+    </div>
+    
+    <!-- Desktop navigation menu -->
+    <nav class="hidden md:flex items-center space-x-2">
+        <a href="{% url 'home' %}" class="nav-link nav-link-desktop">
+        <i class="fas fa-home mr-1.5"></i> Home
+        </a>
+        
+        <!-- Search/Explore component with Alpine.js -->
+        <div x-data="{ isSearchActive: false }" class="relative">
+            <!-- Explore link that transforms to search input -->
+            <a href="#" 
+               @click.prevent="isSearchActive = true; $nextTick(() => $refs.searchInput.focus())" 
+               x-show="!isSearchActive" 
+               class="nav-link nav-link-desktop">
+                <i class="fas fa-compass mr-1.5"></i> Explore
+            </a>
+            
+            <!-- Search input form -->
+            <form x-show="isSearchActive" 
+                  @click.away="isSearchActive = false" 
+                  @submit.prevent="searchSite()" 
+                  class="flex items-center" 
+                  style="display: none;">
+                <div class="relative">
+                    <input 
+                        x-ref="searchInput"
+                        type="text" 
+                        name="q" 
+                        id="search-input-desktop"
+                        placeholder="Search..." 
+                        class="py-1 pl-3 pr-8 rounded-md text-gray-800 w-64 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                    <button type="submit" class="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-purple-700">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+                <button @click.prevent="isSearchActive = false" class="ml-2 text-purple-200 hover:text-white">
+                    <i class="fas fa-times"></i>
+                </button>
+            </form>
+        </div>
+        
+        <!-- Improved Avatar Section for Desktop -->
+        {% if user.is_authenticated %}
+        <div x-data="{ open: false }" class="relative">
+            <button @click="open = !open" @click.away="open = false" class="nav-link nav-link-desktop flex items-center">
+            <div class="relative w-7 h-7 overflow-hidden rounded-full mr-2 flex-shrink-0 bg-purple-800 border border-purple-700">
+                {% if request.user.profile.avatar %}
+                <img src="{{ request.user.profile.avatar.url }}" alt="Avatar" class="w-full h-full object-cover">
+                {% else %}
+                <div class="w-full h-full flex items-center justify-center">
+                    <i class="fas fa-user text-purple-300 text-sm"></i>
+                </div>
+                {% endif %}
+            </div>
+            <span class="truncate max-w-[100px]">{{ request.user.username }}</span>
+            <i class="fas fa-chevron-down ml-1.5 text-xs transition-transform duration-200" :class="{'rotate-180': open}"></i>
+            </button>
+            
+            <div x-show="open" 
+                x-transition:enter="transition ease-out duration-200" 
+                x-transition:enter-start="transform opacity-0 scale-95" 
+                x-transition:enter-end="transform opacity-100 scale-100" 
+                x-transition:leave="transition ease-in duration-150" 
+                x-transition:leave-start="transform opacity-100 scale-100" 
+                x-transition:leave-end="transform opacity-0 scale-95" 
+                class="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-xl ring-1 ring-black ring-opacity-5 focus:outline-none z-10 divide-y divide-gray-100"
+                style="display: none;">
+            <!-- User Info Section -->
+            <div class="px-4 py-3">
+                <div class="flex items-center space-x-3">
+                <div class="relative w-10 h-10 overflow-hidden rounded-full bg-purple-100">
+                    {% if request.user.profile.avatar %}
+                    <img src="{{ request.user.profile.avatar.url }}" alt="Avatar" class="w-full h-full object-cover">
+                    {% else %}
+                    <div class="w-full h-full flex items-center justify-center">
+                        <i class="fas fa-user text-purple-600"></i>
+                    </div>
+                    {% endif %}
+                </div>
+                <div>
+                    <p class="text-xs text-gray-500">Signed in as</p>
+                    <p class="text-sm font-medium text-gray-900 truncate max-w-[160px]">{{ request.user.username }}</p>
+                </div>
+                </div>
+            </div>
+            
+            <!-- Main Menu Items -->
+            <div class="py-1">
+                <a href="{% url 'profile' username=request.user.username %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 transition-colors">
+                <i class="fas fa-user mr-2"></i> My Profile
+                </a>
+                <a href="{% url 'create_note' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 transition-colors">
+                <i class="fas fa-plus mr-2"></i> Create Note
+                </a>
+            </div>
+            
+            <!-- Logout Section -->
+            <div class="py-1">
+                <a href="{% url 'logout' %}" class="block px-4 py-2 text-sm text-red-600 hover:bg-red-50 hover:text-red-700 transition-colors">
+                <i class="fas fa-sign-out-alt mr-2"></i> Logout
+                </a>
+            </div>
+            </div>
+        </div>
+        {% else %}
+        <a href="{% url 'login' %}" class="nav-link nav-link-desktop">
+            <i class="fas fa-sign-in-alt mr-1.5"></i> Login
+        </a>
+        <a href="{% url 'register' %}" class="bg-purple-700 hover:bg-purple-800 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors">
+            <i class="fas fa-user-plus mr-1.5"></i> Register
+        </a>
+        {% endif %}
+    </nav>
+    
+    <!-- Mobile menu button -->
+    <div class="md:hidden flex items-center">
+        <button x-data="{open: false}" @click="open = !open; $dispatch('toggle-mobile-menu', {open: open})" class="text-purple-200 hover:text-white focus:outline-none focus:text-white p-2">
+        <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+        </button>
+    </div>
+    </div>
+</div>
+
+<!-- Mobile menu, show/hide based on menu state -->
+<div x-data="{open: false, isSearchActive: false}" @toggle-mobile-menu.window="open = $event.detail.open" x-show="open" x-cloak
+        x-transition:enter="transition ease-out duration-200"
+        x-transition:enter-start="opacity-0 transform -translate-y-2"
+        x-transition:enter-end="opacity-100 transform translate-y-0"
+        x-transition:leave="transition ease-in duration-150"
+        x-transition:leave-start="opacity-100 transform translate-y-0"
+        x-transition:leave-end="opacity-0 transform -translate-y-2"
+        class="md:hidden bg-purple-800 shadow-inner" 
+        style="display: none;">
+    <div class="px-2 pt-2 pb-3 space-y-1">
+    <!-- Improved Mobile Avatar Section -->
+    {% if user.is_authenticated %}
+        <!-- User profile section for mobile -->
+        <div class="py-3 px-2">
+        <div class="flex items-center space-x-3 bg-purple-700 p-2 rounded-lg">
+            <div class="relative w-10 h-10 overflow-hidden rounded-full bg-purple-800 border border-purple-600 flex-shrink-0">
+            {% if request.user.profile.avatar %}
+                <img src="{{ request.user.profile.avatar.url }}" alt="Avatar" class="w-full h-full object-cover">
+            {% else %}
+                <div class="w-full h-full flex items-center justify-center">
+                <i class="fas fa-user text-purple-300"></i>
+                </div>
+            {% endif %}
+            </div>
+            <div class="flex-1 min-w-0">
+            <p class="text-white font-medium truncate">{{ request.user.username }}</p>
+            <p class="text-purple-200 text-xs truncate">
+                {% if request.user.email %}
+                {{ request.user.email }}
+                {% else %}
+                Member
+                {% endif %}
+            </p>
+            </div>
+        </div>
+        </div>
+        
+        <a href="{% url 'home' %}" class="nav-link nav-link-mobile">
+        <i class="fas fa-home mr-2"></i> Home
+        </a>
+        
+        <!-- Mobile Search/Explore Component -->
+        <div class="my-2">
+            <a x-show="!isSearchActive" 
+               @click.prevent="isSearchActive = true; $nextTick(() => $refs.mobileSearchInput.focus())" 
+               href="#" 
+               class="nav-link nav-link-mobile">
+                <i class="fas fa-compass mr-2"></i> Explore
+            </a>
+            
+            <form x-show="isSearchActive"
+                  @submit.prevent="searchSite()"
+                  class="flex items-center p-2 rounded-md bg-purple-700"
+                  style="display: none;">
+                <div class="relative flex-1">
+                    <input 
+                        x-ref="mobileSearchInput"
+                        type="text"
+                        name="q"
+                        id="search-input-mobile"
+                        placeholder="Search..."
+                        class="w-full py-1.5 pl-3 pr-8 rounded text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                    <button type="submit" class="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-purple-700">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+                <button @click.prevent="isSearchActive = false" class="ml-2 text-purple-200 hover:text-white">
+                    <i class="fas fa-times"></i>
+                </button>
+            </form>
+        </div>
+        
+        <a href="{% url 'profile' username=request.user.username %}" class="nav-link nav-link-mobile">
+        <i class="fas fa-user mr-2"></i> My Profile
+        </a>
+        <a href="{% url 'create_note' %}" class="nav-link bg-purple-600 hover:bg-purple-700 text-white block w-full text-left my-2">
+        <i class="fas fa-plus mr-2"></i> Create Note
+        </a>
+        <div class="border-t border-purple-700 my-2"></div>
+        <a href="{% url 'logout' %}" class="nav-link text-red-200 hover:bg-red-700 hover:text-white block w-full text-left">
+        <i class="fas fa-sign-out-alt mr-2"></i> Logout
+        </a>
+    {% else %}
+        <a href="{% url 'home' %}" class="nav-link nav-link-mobile">
+        <i class="fas fa-home mr-2"></i> Home
+        </a>
+        
+        <!-- Mobile Search/Explore Component for non-authenticated users -->
+        <div class="my-2">
+            <a x-show="!isSearchActive" 
+               @click.prevent="isSearchActive = true; $nextTick(() => $refs.mobileSearchInput.focus())" 
+               href="#" 
+               class="nav-link nav-link-mobile">
+                <i class="fas fa-compass mr-2"></i> Explore
+            </a>
+            
+            <form x-show="isSearchActive"
+                  @submit.prevent="searchSite()"
+                  class="flex items-center p-2 rounded-md bg-purple-700"
+                  style="display: none;">
+                <div class="relative flex-1">
+                    <input 
+                        x-ref="mobileSearchInput"
+                        type="text"
+                        name="q"
+                        id="search-input-mobile-nonauth"
+                        placeholder="Search..."
+                        class="w-full py-1.5 pl-3 pr-8 rounded text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                    <button type="submit" class="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-purple-700">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+                <button @click.prevent="isSearchActive = false" class="ml-2 text-purple-200 hover:text-white">
+                    <i class="fas fa-times"></i>
+                </button>
+            </form>
+        </div>
+        
+        <a href="{% url 'login' %}" class="nav-link nav-link-mobile">
+        <i class="fas fa-sign-in-alt mr-2"></i> Login
+        </a>
+        <a href="{% url 'register' %}" class="nav-link bg-purple-600 text-white hover:bg-purple-700 block w-full text-left my-2">
+        <i class="fas fa-user-plus mr-2"></i> Register
+        </a>
+    {% endif %}
+    </div>
+</div>
+</header>
+
+<!-- Search Results Modal -->
+<div x-data="{ showResults: false, searchResults: { notes_count: 0, users_count: 0, notes: [], users: [] }, searchQuery: '', isLoading: false }"
+     x-show="showResults"
+     @show-search-results.window="
+        showResults = true; 
+        searchQuery = $event.detail.query;
+        isLoading = $event.detail.isLoading;
+        if ($event.detail.results !== null) {
+            searchResults = $event.detail.results;
+        }
+     "
+     @click.away="showResults = false"
+     x-cloak
+     class="fixed inset-0 z-50 overflow-auto bg-black bg-opacity-50 flex items-start justify-center pt-20"
+     style="display: none;">
+    <div class="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[70vh] overflow-auto mx-4">
+        <!-- Modal Header -->
+        <div class="sticky top-0 bg-white px-4 py-3 border-b flex items-center justify-between">
+            <h3 class="text-lg font-medium text-gray-900">
+                Search Results for "<span x-text="searchQuery"></span>"
+            </h3>
+            <button @click="showResults = false" class="text-gray-500 hover:text-gray-700">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <!-- Loading Indicator -->
+        <div x-show="isLoading" class="flex justify-center items-center p-8">
+            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-700"></div>
+        </div>
+        
+        <!-- Results Content -->
+        <div x-show="!isLoading">
+            <!-- No results message -->
+            <div x-show="searchResults.notes_count === 0 && searchResults.users_count === 0" class="p-8 text-center text-gray-500">
+                <i class="far fa-frown text-4xl mb-3"></i>
+                <p>No results found for "<span x-text="searchQuery"></span>"</p>
+            </div>
+            
+            <!-- Users Section -->
+            <div x-show="searchResults.users_count > 0" class="p-4">
+                <h4 class="text-sm uppercase font-semibold text-gray-500 mb-2">
+                    People (<span x-text="searchResults.users_count"></span>)
+                </h4>
+                <div class="space-y-3">
+                    <template x-for="user in searchResults.users" :key="user.id">
+                        <a :href="'/profile/' + user.username + '/'" class="flex items-center p-2 hover:bg-purple-50 rounded-lg transition-colors">
+                            <div class="w-10 h-10 rounded-full bg-purple-100 flex-shrink-0 overflow-hidden">
+                                <template x-if="user.profile && user.profile.avatar">
+                                    <img :src="user.profile.avatar" :alt="user.username" class="w-full h-full object-cover">
+                                </template>
+                                <template x-if="!user.profile || !user.profile.avatar">
+                                    <div class="w-full h-full flex items-center justify-center">
+                                        <i class="fas fa-user text-purple-500"></i>
+                                    </div>
+                                </template>
+                            </div>
+                            <div class="ml-3">
+                                <p class="font-medium text-gray-900" x-text="user.username"></p>
+                                <p class="text-sm text-gray-500" x-text="user.first_name && user.last_name ? (user.first_name + ' ' + user.last_name) : ''"></p>
+                            </div>
+                        </a>
+                    </template>
+                </div>
+                <template x-if="searchResults.users_count > searchResults.users.length">
+                    <a href="#" @click.prevent="window.location.href='/search?q=' + encodeURIComponent(searchQuery)" class="text-purple-600 hover:text-purple-800 text-sm inline-block mt-2">
+                        View all users →
+                    </a>
+                </template>
+            </div>
+            
+            <!-- Notes Section -->
+            <div x-show="searchResults.notes_count > 0" class="p-4 border-t">
+                <h4 class="text-sm uppercase font-semibold text-gray-500 mb-2">
+                    Travel Notes (<span x-text="searchResults.notes_count"></span>)
+                </h4>
+                <div class="space-y-4">
+                    <template x-for="note in searchResults.notes" :key="note.id">
+                        <a :href="'/note/' + note.id + '/'" class="block p-3 hover:bg-purple-50 rounded-lg transition-colors">
+                            <div class="flex items-start">
+                                <template x-if="note.images && note.images.length > 0">
+                                    <div class="w-16 h-16 rounded bg-purple-100 flex-shrink-0 overflow-hidden mr-3">
+                                        <img :src="note.images[0].image" :alt="note.title" class="w-full h-full object-cover">
+                                    </div>
+                                </template>
+                                <div class="flex-1">
+                                    <h5 class="font-medium text-gray-900" x-text="note.title"></h5>
+                                    <p class="text-sm text-gray-600 line-clamp-2" x-text="note.content.slice(0, 100) + (note.content.length > 100 ? '...' : '')"></p>
+                                    <div class="flex items-center mt-1 text-xs text-gray-500">
+                                        <span>By <span class="text-purple-600" x-text="note.author.username"></span></span>
+                                        <span class="mx-1">•</span>
+                                        <span x-text="new Date(note.created_at).toLocaleDateString()"></span>
+                                        <template x-if="note.location">
+                                            <div class="flex items-center ml-2">
+                                                <i class="fas fa-map-marker-alt text-red-500 mr-1"></i>
+                                                <span x-text="note.location"></span>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+                        </a>
+                    </template>
+                </div>
+                <template x-if="searchResults.notes_count > searchResults.notes.length">
+                    <a href="#" @click.prevent="window.location.href='/search?q=' + encodeURIComponent(searchQuery)" class="text-purple-600 hover:text-purple-800 text-sm inline-block mt-2">
+                        View all travel notes →
+                    </a>
+                </template>
+            </div>
+            
+            <!-- Error Message -->
+            <div x-show="searchResults.error" class="p-8 text-center text-red-500">
+                <i class="fas fa-exclamation-circle text-4xl mb-3"></i>
+                <p x-text="searchResults.message || 'An error occurred while searching.'"></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    window.searchSite = function() {
+        const desktopInput = document.getElementById('search-input-desktop');
+        const mobileInput = document.getElementById('search-input-mobile') || document.getElementById('search-input-mobile-nonauth');
+        
+        const query = (desktopInput && desktopInput.value) || 
+                     (mobileInput && mobileInput.value) || '';
+        
+        if (!query.trim()) return;       
+    
+        const event = new CustomEvent('show-search-results', {
+            detail: { 
+                results: { notes_count: 0, users_count: 0, notes: [], users: [] },
+                query: query,
+                isLoading: true
+            }
+        });
+        window.dispatchEvent(event);
+        
+        fetch(`/search-ajax/?q=${encodeURIComponent(query)}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                const resultEvent = new CustomEvent('show-search-results', {
+                    detail: { 
+                        results: data,
+                        query: query,
+                        isLoading: false
+                    }
+                });
+                window.dispatchEvent(resultEvent);
+            })
+            .catch(error => {
+                console.error('Error fetching search results:', error);
+                const errorEvent = new CustomEvent('show-search-results', {
+                    detail: { 
+                        results: { 
+                            error: true, 
+                            message: 'Failed to fetch results.',
+                            notes_count: 0,
+                            users_count: 0,
+                            notes: [],
+                            users: []
+                        },
+                        query: query,
+                        isLoading: false
+                    }
+                });
+                window.dispatchEvent(errorEvent);
+            });
+    };
+});
+</script>

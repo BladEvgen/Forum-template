@@ -1,0 +1,72 @@
+{% comment %}
+Avatar Component
+Usage: {% include "components/avatar.html" with user=user size="md" %}
+
+Sizes:
+- xs: 24px
+- sm: 32px
+- md: 40px
+- lg: 48px
+- xl: 64px
+- 2xl: 96px
+- 3xl: 128px
+
+Optional parameters:
+- link: Set to True to make the avatar clickable (defaults to False)
+- badge: Set to True to show online status badge (defaults to False)
+- ring: Set to True to add a ring (defaults to False)
+- ring_color: Color for the ring (defaults to "purple")
+{% endcomment %}
+
+{% if not size %}
+  {% with size="md" %}
+    {% include "components/avatar.html" with user=user size=size link=link|default:False badge=badge|default:False ring=ring|default:False ring_color=ring_color|default:"purple" %}
+  {% endwith %}
+{% else %}
+  {% with sizes="xs=6 sm=8 md=10 lg=12 xl=16 2xl=24 3xl=32" %}
+    {% with size_map=sizes|split:" " %}
+      {% with size_value=size|add:"=" %}
+        {% for size_item in size_map %}
+          {% if size_item|startswith:size_value %}
+            {% with px_value=size_item|cut:size_value %}
+              {% if link %}
+                <a href="{% url 'profile' username=user.username %}" class="inline-block flex-shrink-0">
+              {% endif %}
+              
+              <div class="relative">
+                {% if user.profile and user.profile.avatar %}
+                  <!-- User has avatar -->
+                  <img src="{{ user.profile.avatar.url }}" alt="{{ user.username }}" 
+                      class="w-{{ px_value }} h-{{ px_value }} rounded-full object-cover {% if ring %}ring-2 ring-{{ ring_color }}-500 ring-offset-1{% endif %}"
+                      loading="lazy">
+                {% else %}
+                  <!-- Default avatar placeholder -->
+                  <div class="w-{{ px_value }} h-{{ px_value }} rounded-full bg-purple-100 flex items-center justify-center text-purple-500 {% if ring %}ring-2 ring-{{ ring_color }}-500 ring-offset-1{% endif %}">
+                    {% if px_value|add:0 < 10 %}
+                      <i class="fas fa-user text-xs"></i>
+                    {% elif px_value|add:0 < 16 %}
+                      <i class="fas fa-user text-sm"></i>
+                    {% elif px_value|add:0 < 24 %}
+                      <i class="fas fa-user"></i>
+                    {% else %}
+                      <i class="fas fa-user text-2xl"></i>
+                    {% endif %}
+                  </div>
+                {% endif %}
+                
+                {% if badge %}
+                  <!-- Online status badge -->
+                  <span class="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-green-400 ring-2 ring-white"></span>
+                {% endif %}
+              </div>
+              
+              {% if link %}
+                </a>
+              {% endif %}
+            {% endwith %}
+          {% endif %}
+        {% endfor %}
+      {% endwith %}
+    {% endwith %}
+  {% endwith %}
+{% endif %}
