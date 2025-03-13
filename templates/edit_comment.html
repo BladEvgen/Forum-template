@@ -1,0 +1,151 @@
+{% extends "components/base.html" %}
+{% load static %}
+{% block title %}Edit Comment{% endblock title %}
+
+{% block main %}
+<div class="max-w-2xl mx-auto py-8 px-4 sm:px-6">
+  <!-- Breadcrumbs -->
+  <nav class="flex items-center text-sm text-gray-500 mb-4">
+    <a href="{% url 'home' %}" class="hover:text-purple-600 transition">
+      <i class="fas fa-home"></i>
+      <span class="sr-only">Home</span>
+    </a>
+    <span class="mx-2">/</span>
+    <a href="{{ comment.note.get_absolute_url }}" class="hover:text-purple-600 transition truncate">
+      {{ comment.note.title }}
+    </a>
+    <span class="mx-2">/</span>
+    <span class="text-gray-700 font-medium">Edit Comment</span>
+  </nav>
+
+  <!-- Main Content Card -->
+  <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+    <div class="p-6 border-b border-gray-200">
+      <h1 class="text-xl font-semibold text-gray-900">Edit Comment</h1>
+    </div>
+
+    <div class="p-6">
+      <!-- Original Comment Preview -->
+      <div class="mb-6 bg-gray-50 rounded-lg p-4">
+        <div class="flex items-center space-x-3 mb-3">
+          <!-- Author Avatar -->
+          <div class="flex-shrink-0">
+            {% if comment.author.profile and comment.author.profile.avatar %}
+              <img src="{{ comment.author.profile.avatar.url }}" alt="{{ comment.author.username }}" class="w-8 h-8 rounded-full object-cover">
+            {% else %}
+              <div class="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-500">
+                <i class="fas fa-user"></i>
+              </div>
+            {% endif %}
+          </div>
+          
+          <!-- Author Info -->
+          <div>
+            <a href="{% url 'profile' username=comment.author.username %}" class="font-medium text-gray-900 hover:text-purple-700 transition">
+              {{ comment.author.username }}
+            </a>
+            <div class="text-xs text-gray-500">
+              <time datetime="{{ comment.created_at|date:'c' }}">{{ comment.created_at|date:"M j, Y, g:i a" }}</time>
+            </div>
+          </div>
+        </div>
+        
+        <div class="text-gray-500 text-sm italic">
+          Original content:
+        </div>
+        <div class="mt-1 text-sm text-gray-800">
+          {{ comment.content|linebreaks }}
+        </div>
+      </div>
+
+      <!-- Edit Form -->
+      <form method="post" action="{% url 'edit_comment' comment_id=comment.id %}" id="edit-comment-form">
+        {% csrf_token %}
+        
+        <div class="mb-4">
+          <label for="content" class="block text-sm font-medium text-gray-700 mb-1">Edit your comment</label>
+          <textarea name="content" id="content" rows="4" 
+                    class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-purple-500 focus:border-purple-500 sm:text-sm" 
+                    required>{{ comment.content }}</textarea>
+          
+          <div class="text-xs text-gray-500 mt-1 flex items-center">
+            <i class="fas fa-info-circle mr-1"></i>
+            <span>Your edit will be visible to everyone</span>
+          </div>
+        </div>
+        
+        <div class="flex justify-between items-center">
+          <a href="{{ comment.note.get_absolute_url }}" 
+             class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none transition-colors">
+            Cancel
+          </a>
+          
+          <button type="submit" id="save-button"
+                  class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none transition-colors">
+            Save Changes
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  
+  <!-- Note Context Card -->
+  <div class="bg-white rounded-xl shadow-sm overflow-hidden mt-6">
+    <div class="p-4 border-b border-gray-200">
+      <h2 class="text-sm font-medium text-gray-900">From Note</h2>
+    </div>
+    
+    <div class="p-4">
+      <a href="{{ comment.note.get_absolute_url }}" class="block hover:bg-gray-50 rounded-lg p-3 transition">
+        <div class="flex items-center space-x-3">
+          <div class="flex-shrink-0">
+            {% if comment.note.images.first %}
+              <img src="{{ comment.note.images.first.image.url }}" alt="{{ comment.note.title }}" class="w-16 h-16 object-cover rounded-md">
+            {% else %}
+              <div class="w-16 h-16 bg-purple-100 rounded-md flex items-center justify-center text-purple-500">
+                <i class="fas fa-sticky-note text-2xl"></i>
+              </div>
+            {% endif %}
+          </div>
+          
+          <div class="flex-1 min-w-0">
+            <h3 class="text-sm font-medium text-gray-900 truncate">{{ comment.note.title }}</h3>
+            <p class="text-xs text-gray-500 mt-1">By {{ comment.note.author.username }} • {{ comment.note.created_at|date:"M j, Y" }}</p>
+            <p class="text-xs text-gray-600 mt-1 line-clamp-2">{{ comment.note.content|truncatechars:100 }}</p>
+          </div>
+          
+          <div class="flex-shrink-0 self-center">
+            <i class="fas fa-chevron-right text-gray-400"></i>
+          </div>
+        </div>
+      </a>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('edit-comment-form');
+    const textarea = form.querySelector('textarea');
+    const saveButton = document.getElementById('save-button');
+    
+    function autoResize() {
+      textarea.style.height = 'auto';
+      textarea.style.height = (textarea.scrollHeight) + 'px';
+    }
+    
+    autoResize();
+    textarea.addEventListener('input', autoResize);
+    
+    textarea.selectionStart = textarea.selectionEnd = textarea.value.length;
+    textarea.focus();
+
+    form.addEventListener('submit', function(e) {
+      const originalText = saveButton.innerHTML;
+      saveButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-1.5"></i> Saving...';
+      saveButton.disabled = true;
+      
+    });
+  });
+</script>
+{% endblock main %}
