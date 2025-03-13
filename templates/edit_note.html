@@ -1,0 +1,680 @@
+{% extends "components/base.html" %}
+{% load static %}
+{% block title %}Edit Note{% endblock title %}
+
+{% block main %}
+<div class="max-w-3xl mx-auto py-8 px-4 sm:px-6">
+  <!-- Breadcrumbs -->
+  <nav class="flex items-center text-sm text-gray-500 mb-4">
+    <a href="{% url 'home' %}" class="hover:text-purple-600 transition">
+      <i class="fas fa-home"></i>
+      <span class="sr-only">Home</span>
+    </a>
+    <span class="mx-2">/</span>
+    <a href="{% url 'profile' username=request.user.username %}" class="hover:text-purple-600 transition">
+      {{ request.user.username }}
+    </a>
+    <span class="mx-2">/</span>
+    <a href="{% url 'note_detail' note_id=note.id %}" class="hover:text-purple-600 transition">
+      {{ note.title }}
+    </a>
+    <span class="mx-2">/</span>
+    <span class="text-gray-700 font-medium">Edit</span>
+  </nav>
+  
+  <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+    <div class="px-6 py-4 border-b border-gray-200">
+      <h1 class="text-2xl font-bold text-gray-900">Edit Note</h1>
+    </div>
+    
+    <form method="post" action="{% url 'edit_note' note_id=note.id %}" enctype="multipart/form-data" class="p-6" id="edit-note-form">
+      {% csrf_token %}
+      
+      <!-- Note Title -->
+      <div class="mb-4">
+        <label for="title" class="block text-sm font-medium text-gray-700 mb-1">Title</label>
+        <input type="text" id="title" name="title" value="{{ note.title }}" 
+               class="block w-full rounded-md border-gray-300 shadow-sm focus:ring-purple-500 focus:border-purple-500 sm:text-sm" 
+               required>
+      </div>
+      
+      <!-- Note Content -->
+      <div class="mb-4">
+        <label for="content" class="block text-sm font-medium text-gray-700 mb-1">Content</label>
+        <textarea id="content" name="content" rows="8" 
+                 class="block w-full rounded-md border-gray-300 shadow-sm focus:ring-purple-500 focus:border-purple-500 sm:text-sm" 
+                 required>{{ note.content }}</textarea>
+      </div>
+      
+      <!-- Location Field -->
+    <div class="mb-6" x-data="{ showMap: false }">
+    <div class="flex items-center justify-between mb-1">
+        <label for="location" class="block text-sm font-medium text-gray-700">Location (optional)</label>
+        <div class="flex space-x-2">
+        <button type="button" @click="showMap = !showMap" class="text-xs text-purple-600 hover:text-purple-800">
+            <i class="fas fa-map-marker-alt mr-1"></i>
+            <span x-text="showMap ? 'Hide Map' : 'Pick on Map'"></span>
+        </button>
+        </div>
+    </div>
+        
+        
+        <div class="flex space-x-2">
+          <div class="flex-1">
+              <input type="text" id="location" name="location" value="{{ note.location|default:'' }}" 
+                class="block w-full rounded-md border-gray-300 shadow-sm focus:ring-purple-500 focus:border-purple-500 sm:text-sm">
+          </div>
+          
+          <input type="hidden" id="latitude" name="latitude" value="{{ note.latitude|default:'' }}">
+          <input type="hidden" id="longitude" name="longitude" value="{{ note.longitude|default:'' }}">
+        </div>
+        <div id="location-status" class="mt-1 text-xs hidden"></div>
+
+        <!-- Map Container (hidden by default) -->
+        <div x-show="showMap" class="mt-3 h-60 rounded-lg overflow-hidden border border-gray-300" 
+            x-transition:enter="transition ease-out duration-300"
+            x-transition:enter-start="opacity-0 transform -translate-y-4"
+            x-transition:enter-end="opacity-100 transform translate-y-0"
+            style="display: none;">
+            <div id="map-container" class="h-full w-full"></div>
+        </div>
+      </div>
+      
+      <!-- Current Images -->
+      {% if note.images.all %}
+        <div class="mb-6">
+          <div class="flex items-center justify-between mb-2">
+            <label class="block text-sm font-medium text-gray-700">Current Images</label>
+            <button type="button" id="select-all-images" class="text-xs text-purple-600 hover:text-purple-800">
+              <i class="fas fa-check-square mr-1"></i> Select All for Deletion
+            </button>
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {% for image in note.images.all %}
+              <div class="relative group rounded-lg overflow-hidden border border-gray-300 image-container">
+                <img src="{{ image.image.url }}" alt="Image {{ forloop.counter }}" class="w-full h-32 object-cover">
+                <div class="absolute inset-0 bg-black bg-opacity-60 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
+                  <label class="flex items-center justify-center space-x-1 text-white cursor-pointer">
+                    <input type="checkbox" name="delete_images" value="{{ image.id }}" class="h-4 w-4 text-red-600 delete-image-checkbox">
+                    <span class="text-sm">Delete</span>
+                  </label>
+                </div>
+                <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <span class="bg-black bg-opacity-75 text-white text-xs px-1.5 py-0.5 rounded">
+                    {{ forloop.counter }}/{{ note.images.all|length }}
+                  </span>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+          <p class="text-xs text-gray-500 mt-1">Hover over images to select for deletion</p>
+        </div>
+      {% endif %}
+      
+      <!-- Add New Images -->
+      <div class="mb-6">
+        <label for="images" class="block text-sm font-medium text-gray-700 mb-1">Add Images (optional)</label>
+        <div id="drop-area" class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md hover:bg-gray-50 transition-colors relative">
+          <div class="space-y-1 text-center">
+            <i class="fas fa-images text-gray-400 text-3xl mb-2"></i>
+            <div class="flex text-sm text-gray-600">
+              <label for="images" class="relative cursor-pointer bg-white rounded-md font-medium text-purple-600 hover:text-purple-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-purple-500">
+                <span>Upload images</span>
+                <input id="images" name="images" type="file" class="sr-only" multiple accept="image/*">
+              </label>
+              <p class="pl-1">or drag and drop</p>
+            </div>
+            <p class="text-xs text-gray-500">PNG, JPG, WEBP up to 10MB each</p>
+          </div>
+          <div id="upload-progress" class="absolute bottom-0 left-0 right-0 h-1 bg-purple-600 transition-all duration-300" style="width: 0%;"></div>
+        </div>
+        <div id="image-preview" class="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2"></div>
+        <p id="file-counter" class="mt-1 text-xs text-gray-500 hidden">0 files selected</p>
+      </div>
+      
+      <!-- Form Actions -->
+      <div class="flex justify-end space-x-3">
+        <a href="{% url 'note_detail' note_id=note.id %}" class="inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500">
+          Cancel
+        </a>
+        <button type="submit" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500">
+          Save Changes
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+  const selectAllButton = document.getElementById('select-all-images');
+  const deleteCheckboxes = document.querySelectorAll('.delete-image-checkbox');
+  
+  if (selectAllButton) {
+    selectAllButton.addEventListener('click', function() {
+      const anyUnchecked = Array.from(deleteCheckboxes).some(checkbox => !checkbox.checked);
+      
+      deleteCheckboxes.forEach(checkbox => {
+        checkbox.checked = anyUnchecked;
+      });
+      
+      this.innerHTML = anyUnchecked ? 
+        '<i class="fas fa-times-square mr-1"></i> Unselect All' : 
+        '<i class="fas fa-check-square mr-1"></i> Select All for Deletion';
+    });
+  }
+  
+  const imageInput = document.getElementById('images');
+  const imagePreview = document.getElementById('image-preview');
+  const dropArea = document.getElementById('drop-area');
+  const fileCounter = document.getElementById('file-counter');
+  const uploadProgress = document.getElementById('upload-progress');
+  
+  function updateImagePreview(files) {
+    if (!files || files.length === 0) return;
+    
+    fileCounter.textContent = `${files.length} file${files.length > 1 ? 's' : ''} selected`;
+    fileCounter.classList.remove('hidden');
+    
+    imagePreview.innerHTML = '';
+    
+    uploadProgress.style.width = '0%';
+    
+    let progress = 0;
+    const progressInterval = setInterval(() => {
+      progress += 5;
+      uploadProgress.style.width = `${Math.min(progress, 95)}%`;
+      if (progress >= 95) clearInterval(progressInterval);
+    }, 50);
+    
+    Array.from(files).forEach((file, index) => {
+      if (!file.type.match('image.*')) return;
+      
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const div = document.createElement('div');
+        div.className = 'relative rounded-md overflow-hidden border border-gray-200 group';
+        
+        const aspectBox = document.createElement('div');
+        aspectBox.className = 'aspect-square';
+        
+        const img = document.createElement('img');
+        img.src = e.target.result;
+        img.alt = file.name;
+        img.className = 'w-full h-full object-cover';
+        
+        const overlay = document.createElement('div');
+        overlay.className = 'absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center p-2';
+        
+        const filename = document.createElement('span');
+        filename.className = 'text-white text-xs text-center truncate max-w-full';
+        filename.textContent = file.name;
+        
+        const filesize = document.createElement('span');
+        filesize.className = 'text-white text-xs opacity-75';
+        filesize.textContent = formatFileSize(file.size);
+        
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'mt-2 bg-red-500 hover:bg-red-600 text-white text-xs rounded px-2 py-0.5 transition-colors';
+        removeBtn.textContent = 'Remove';
+        removeBtn.dataset.index = index;
+        removeBtn.addEventListener('click', function() {
+          div.remove();
+          
+          const dt = new DataTransfer();
+          const files = imageInput.files;
+          
+          for (let i = 0; i < files.length; i++) {
+            if (i !== parseInt(this.dataset.index)) {
+              dt.items.add(files[i]);
+            }
+          }
+          
+          imageInput.files = dt.files;
+          
+          fileCounter.textContent = `${imageInput.files.length} file${imageInput.files.length > 1 ? 's' : ''} selected`;
+          if (imageInput.files.length === 0) {
+            fileCounter.classList.add('hidden');
+          }
+        });
+        
+        overlay.appendChild(filename);
+        overlay.appendChild(filesize);
+        overlay.appendChild(removeBtn);
+        aspectBox.appendChild(img);
+        div.appendChild(aspectBox);
+        div.appendChild(overlay);
+        imagePreview.appendChild(div);
+      };
+      
+      reader.readAsDataURL(file);
+    });
+    
+    setTimeout(() => {
+      uploadProgress.style.width = '100%';
+      setTimeout(() => {
+        uploadProgress.style.width = '0%';
+      }, 500);
+    }, files.length * 50 + 500);
+  }
+  
+  function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' bytes';
+    else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+    else return (bytes / 1048576).toFixed(1) + ' MB';
+  }
+  
+  if (imageInput) {
+    imageInput.addEventListener('change', function() {
+      updateImagePreview(this.files);
+    });
+  }
+  
+  if (dropArea) {
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+      dropArea.addEventListener(eventName, preventDefaults, false);
+    });
+    
+    function preventDefaults(e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
+    ['dragenter', 'dragover'].forEach(eventName => {
+      dropArea.addEventListener(eventName, highlight, false);
+    });
+    
+    ['dragleave', 'drop'].forEach(eventName => {
+      dropArea.addEventListener(eventName, unhighlight, false);
+    });
+    
+    function highlight() {
+      dropArea.classList.add('border-purple-500', 'bg-purple-50');
+      dropArea.classList.remove('border-gray-300');
+    }
+    
+    function unhighlight() {
+      dropArea.classList.remove('border-purple-500', 'bg-purple-50');
+      dropArea.classList.add('border-gray-300');
+    }
+    
+    dropArea.addEventListener('drop', handleDrop, false);
+    
+    function handleDrop(e) {
+      const dt = e.dataTransfer;
+      const files = dt.files;
+      
+      if (files.length > 0) {
+        const newDt = new DataTransfer();
+        
+        if (imageInput.files.length > 0) {
+          for (let i = 0; i < imageInput.files.length; i++) {
+            newDt.items.add(imageInput.files[i]);
+          }
+        }
+        
+        for (let i = 0; i < files.length; i++) {
+          if (files[i].type.match('image.*')) {
+            newDt.items.add(files[i]);
+          }
+        }
+        
+        imageInput.files = newDt.files;
+        
+        updateImagePreview(imageInput.files);
+      }
+    }
+  }
+  
+  const mapContainer = document.getElementById('map-container');
+  const latitudeInput = document.getElementById('latitude');
+  const longitudeInput = document.getElementById('longitude');
+  const locationInput = document.getElementById('location');
+  const locationStatus = document.getElementById('location-status');
+  const editNoteForm = document.getElementById('edit-note-form');
+  let map = null;
+  let mapLocationBtn = null;
+  
+  if (locationInput) {
+    locationInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        return false;
+      }
+    });
+  }
+  
+  const locationButton = document.getElementById('get-location-btn');
+  
+  if (locationButton) {
+    locationButton.addEventListener('click', function(e) {
+      e.preventDefault();
+      disableLocationButtons();
+      getCurrentLocation();
+    });
+  }
+  
+  function disableLocationButtons() {
+    if (locationButton) {
+      locationButton.disabled = true;
+      locationButton.classList.add('opacity-50', 'cursor-not-allowed');
+      locationButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Getting Location...';
+    }
+    
+    if (mapLocationBtn) {
+      mapLocationBtn.disabled = true;
+      mapLocationBtn.classList.add('opacity-50', 'cursor-not-allowed');
+      mapLocationBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Getting Location...';
+    }
+  }
+  
+  function enableLocationButtons() {
+    if (locationButton) {
+      locationButton.disabled = false;
+      locationButton.classList.remove('opacity-50', 'cursor-not-allowed');
+      locationButton.innerHTML = '<i class="fas fa-location-arrow mr-1"></i> Use My Location';
+    }
+    
+    if (mapLocationBtn) {
+      mapLocationBtn.disabled = false;
+      mapLocationBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+      mapLocationBtn.innerHTML = '<i class="fas fa-location-arrow mr-1"></i> Use My Location';
+    }
+  }
+  
+  function showStatus(message, type = 'info') {
+    if (!locationStatus) return;
+    
+    locationStatus.textContent = message;
+    locationStatus.classList.remove('hidden', 'text-gray-600', 'text-green-600', 'text-red-600', 'text-yellow-600');
+    
+    switch (type) {
+      case 'success':
+        locationStatus.classList.add('text-green-600');
+        break;
+      case 'error':
+        locationStatus.classList.add('text-red-600');
+        break;
+      case 'warning':
+        locationStatus.classList.add('text-yellow-600');
+        break;
+      default:
+        locationStatus.classList.add('text-gray-600');
+    }
+    
+    setTimeout(() => {
+      locationStatus.classList.add('hidden');
+    }, 5000);
+  }
+  
+  function getCurrentLocation() {
+    showStatus('Getting your location...');
+    
+    if (navigator.geolocation) {
+      if (window.geoTimeoutId) {
+        clearTimeout(window.geoTimeoutId);
+      }
+      
+      window.geoTimeoutId = setTimeout(function() {
+        showStatus('Location request is taking too long. Please try again.', 'error');
+        enableLocationButtons();
+      }, 15000);
+      
+      navigator.geolocation.getCurrentPosition(
+        function(position) {
+          clearTimeout(window.geoTimeoutId);
+          
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          
+          latitudeInput.value = lat;
+          longitudeInput.value = lng;
+          
+          if (map) {
+            map.setView([lat, lng], 15);
+            
+            if (window.currentMarker) {
+              map.removeLayer(window.currentMarker);
+            }
+            
+            window.currentMarker = L.marker([lat, lng], {draggable: true}).addTo(map);
+            window.currentMarker.on('dragend', function() {
+              updateCoordinates(window.currentMarker.getLatLng());
+            });
+          }
+          
+          fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
+            .then(response => response.json())
+            .then(data => {
+              if (data.display_name) {
+                locationInput.value = data.display_name;
+                showStatus('✓ Location set successfully!', 'success');
+                enableLocationButtons();
+              }
+            })
+            .catch(error => {
+              console.error('Error:', error);
+              showStatus('Found location, but could not get address.', 'warning');
+              enableLocationButtons();
+            });
+        },
+        function(error) {
+          clearTimeout(window.geoTimeoutId);
+          
+          let errorMsg = 'Could not get your location. ';
+          
+          switch(error.code) {
+            case error.PERMISSION_DENIED:
+              errorMsg += 'Please allow location access in your browser settings.';
+              break;
+            case error.POSITION_UNAVAILABLE:
+              errorMsg += 'Location information is unavailable.';
+              break;
+            case error.TIMEOUT:
+              errorMsg += 'Please try again.';
+              break;
+            case error.UNKNOWN_ERROR:
+              errorMsg += 'Please refresh the page and try again.';
+              break;
+          }
+          
+          showStatus(errorMsg, 'error');
+          enableLocationButtons();
+        },
+        {
+          enableHighAccuracy: false,
+          timeout: 10000, 
+          maximumAge: 60000 
+        }
+      );
+    } else {
+      showStatus('Geolocation is not supported by this browser.', 'error');
+      enableLocationButtons();
+    }
+  }
+  
+  function initMap() {
+    if (!mapContainer) return;
+    
+    if (mapContainer.offsetParent === null) {
+      setTimeout(initMap, 100);
+      return;
+    }
+    
+    if (typeof L === 'undefined') {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+      document.head.appendChild(link);
+      
+      const script = document.createElement('script');
+      script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+      script.onload = function() {
+        createMap();
+      };
+      document.head.appendChild(script);
+    } else {
+      createMap();
+    }
+  }
+  
+  function createMap() {
+    if (map) {
+      map.invalidateSize();
+      return;
+    }
+    
+    map = L.map(mapContainer).setView([40, 0], 2);
+    
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
+    
+    map.zoomControl.setPosition('bottomright');
+    
+    mapLocationBtn = document.createElement('button');
+    mapLocationBtn.className = 'absolute top-2 right-2 z-[1000] bg-white p-2 rounded-md shadow-md text-xs flex items-center text-purple-700 hover:bg-purple-50 transition-colors';
+    mapLocationBtn.innerHTML = '<i class="fas fa-location-arrow mr-1"></i> Use My Location';
+    mapLocationBtn.onclick = function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      disableLocationButtons();
+      getCurrentLocation();
+      return false;
+    };
+    mapContainer.appendChild(mapLocationBtn);
+    
+    let marker;
+    if (latitudeInput.value && longitudeInput.value) {
+      const lat = parseFloat(latitudeInput.value);
+      const lng = parseFloat(longitudeInput.value);
+      
+      if (!isNaN(lat) && !isNaN(lng)) {
+        map.setView([lat, lng], 13);
+        marker = L.marker([lat, lng], {draggable: true}).addTo(map);
+        window.currentMarker = marker;
+        
+        marker.on('dragend', function() {
+          updateCoordinates(marker.getLatLng());
+        });
+      }
+    }
+    
+    mapContainer.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      return false;
+    });
+    
+    map.on('click', function(e) {
+      if (window.currentMarker) {
+        map.removeLayer(window.currentMarker);
+      }
+      
+      window.currentMarker = L.marker(e.latlng, {draggable: true}).addTo(map);
+      updateCoordinates(e.latlng);
+      
+      window.currentMarker.on('dragend', function() {
+        updateCoordinates(window.currentMarker.getLatLng());
+      });
+      
+      L.DomEvent.preventDefault(e);
+      L.DomEvent.stopPropagation(e);
+      return false;
+    });
+    
+    locationInput.addEventListener('change', function() {
+      const query = this.value;
+      if (!query) return;
+      
+      showStatus('Searching for location...');
+      
+      fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`)
+        .then(response => response.json())
+        .then(data => {
+          if (data.length > 0) {
+            const result = data[0];
+            const lat = parseFloat(result.lat);
+            const lng = parseFloat(result.lon);
+            
+            if (window.currentMarker) {
+              map.removeLayer(window.currentMarker);
+            }
+            
+            window.currentMarker = L.marker([lat, lng], {draggable: true}).addTo(map);
+            map.setView([lat, lng], 13);
+            
+            latitudeInput.value = lat;
+            longitudeInput.value = lng;
+            
+            window.currentMarker.on('dragend', function() {
+              updateCoordinates(window.currentMarker.getLatLng());
+            });
+            
+            showStatus('Location found!', 'success');
+          } else {
+            showStatus('Location not found. Try a different search.', 'error');
+          }
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          showStatus('Error searching for location', 'error');
+        });
+    });
+    
+    setTimeout(function() {
+      map.invalidateSize();
+    }, 100);
+  }
+  
+  function updateCoordinates(latlng) {
+    latitudeInput.value = latlng.lat;
+    longitudeInput.value = latlng.lng;
+    
+    showStatus('Getting address...');
+    
+    fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latlng.lat}&lon=${latlng.lng}`)
+      .then(response => response.json())
+      .then(data => {
+        if (data.display_name) {
+          locationInput.value = data.display_name;
+          showStatus('Address updated', 'success');
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        showStatus('Could not get address for this location', 'warning');
+      });
+  }
+  
+  document.addEventListener('click', function(e) {
+    const button = e.target.closest('button[type="button"]');
+    if (button && (
+        button.textContent.includes('Map') || 
+        button.textContent.includes('map') ||
+        (button.nextElementSibling && button.nextElementSibling.textContent.includes('Map'))
+      )) {
+      
+      e.preventDefault();
+      e.stopPropagation();
+      
+      setTimeout(function() {
+        initMap();
+      }, 300);
+      
+      return false;
+    }
+  });
+  
+  if (editNoteForm) {
+    editNoteForm.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && e.target.type !== 'textarea' && e.target.type !== 'submit') {
+        e.preventDefault();
+        return false;
+      }
+    });
+  }
+});
+</script>
+{% endblock main %}

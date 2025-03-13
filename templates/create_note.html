@@ -1,0 +1,643 @@
+{% extends "components/base.html" %}
+{% load static %}
+{% block title %}Create New Post{% endblock title %}
+
+{% block main %}
+<div class="max-w-xl mx-auto py-4 px-4" x-data="{ 
+    title: '',
+    content: '',
+    location: '',
+    locationDetails: {
+      lat: null,
+      lng: null,
+      address: ''
+    },
+    imageFiles: [],
+    imagePreviewUrls: [],
+    dragActive: false,
+    showPreview: false,
+    previewTab: 'post', /* post or media */
+    showLocationModal: false,
+    isSubmitting: false,
+    
+    handleImageSelect(event) {
+      const files = event.target.files;
+      if (!files || files.length === 0) return;
+      
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        
+        if (!file.type.match('image.*')) continue;
+        
+        if (this.imageFiles.some(f => f.name === file.name && f.size === file.size)) continue;
+        
+        this.imageFiles.push(file);
+        
+        const url = URL.createObjectURL(file);
+        this.imagePreviewUrls.push(url);
+      }
+    },
+    
+    handleImageDrop(event) {
+      this.dragActive = false;
+      const files = event.dataTransfer.files;
+      if (!files || files.length === 0) return;
+      
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        
+        if (!file.type.match('image.*')) continue;
+        
+        if (this.imageFiles.some(f => f.name === file.name && f.size === file.size)) continue;
+        
+        this.imageFiles.push(file);
+        
+        const url = URL.createObjectURL(file);
+        this.imagePreviewUrls.push(url);
+      }
+    },
+    
+    removeImage(index) {
+      this.imageFiles.splice(index, 1);
+      URL.revokeObjectURL(this.imagePreviewUrls[index]);
+      this.imagePreviewUrls.splice(index, 1);
+    },
+    
+    getCurrentLocation() {
+      if (navigator.geolocation) {
+        this.location = 'Detecting your location...';
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            this.locationDetails.lat = position.coords.latitude;
+            this.locationDetails.lng = position.coords.longitude;
+            
+            document.getElementById('latitude').value = position.coords.latitude;
+            document.getElementById('longitude').value = position.coords.longitude;
+            
+            this.reverseGeocode(position.coords.latitude, position.coords.longitude);
+          },
+          (error) => {
+            console.error('Error getting location:', error);
+            this.location = '';
+            alert('Unable to get your location. Please enter it manually.');
+          }
+        );
+      } else {
+        alert('Geolocation is not supported by your browser');
+      }
+    },
+    
+    reverseGeocode(lat, lng) {
+      fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
+        .then(response => response.json())
+        .then(data => {
+          if (data && data.display_name) {
+            this.location = data.display_name;
+            this.locationDetails.address = data.display_name;
+            this.showLocationModal = false;
+          } else {
+            this.location = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+          }
+        })
+        .catch(error => {
+          console.error('Error geocoding:', error);
+          this.location = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+        });
+    },
+    
+    submitForm() {
+      if (!this.title && !this.content && this.imagePreviewUrls.length === 0) {
+        return;
+      }
+      
+      this.isSubmitting = true;
+      
+      const form = document.getElementById('create-note-form');
+      const formData = new FormData(form);
+      
+      formData.delete('images');
+      
+      this.imageFiles.forEach(file => {
+        formData.append('images', file);
+      });
+      
+      fetch(form.action, {
+        method: 'POST',
+        body: formData,
+      })
+      .then(response => {
+        if (response.redirected) {
+          window.location.href = response.url;
+        } else {
+          return response.text().then(html => {
+            window.location.reload();
+          });
+        }
+      })
+      .catch(error => {
+        console.error('Error submitting form:', error);
+        this.isSubmitting = false;
+        alert('There was an error submitting your post. Please try again.');
+      });
+    }
+  }">
+  
+  <!-- Twitter-Style Card -->
+  <div class="bg-white rounded-xl shadow-md overflow-hidden mb-5">
+    <!-- Tabs for Create vs Preview -->
+    <div class="flex border-b">
+      <button @click="showPreview = false" :class="showPreview ? 'bg-white text-gray-600' : 'bg-gray-50 text-purple-600 font-medium'" class="flex-1 py-3 px-4 text-center transition">
+        <i class="fas fa-edit mr-2"></i> Compose
+      </button>
+      <button @click="showPreview = true" :class="showPreview ? 'bg-gray-50 text-purple-600 font-medium' : 'bg-white text-gray-600'" class="flex-1 py-3 px-4 text-center transition">
+        <i class="fas fa-eye mr-2"></i> Preview
+      </button>
+    </div>
+  
+    <!-- Preview Mode -->
+    <div x-show="showPreview" x-cloak>
+      <!-- Preview Tabs -->
+      <div class="flex border-b bg-white">
+        <button @click="previewTab = 'post'" :class="previewTab === 'post' ? 'border-b-2 border-purple-500 text-purple-600' : 'text-gray-500'" class="py-2 px-4 font-medium text-sm">
+          Post
+        </button>
+        <button @click="previewTab = 'media'" :class="previewTab === 'media' ? 'border-b-2 border-purple-500 text-purple-600' : 'text-gray-500'" class="py-2 px-4 font-medium text-sm">
+          Media <span x-text="imagePreviewUrls.length ? `(${imagePreviewUrls.length})` : ''"></span>
+        </button>
+      </div>
+      
+      <div x-show="previewTab === 'post'">
+        <!-- Twitter Post Preview -->
+        <div class="p-4">
+          <!-- Post Header -->
+          <div class="flex space-x-3">
+            <!-- User Avatar -->
+            <div class="flex-shrink-0">
+              {% if request.user.profile and request.user.profile.avatar %}
+                <img src="{{ request.user.profile.avatar.url }}" alt="{{ request.user.username }}" class="w-10 h-10 rounded-full object-cover">
+              {% else %}
+                <div class="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-500">
+                  <i class="fas fa-user"></i>
+                </div>
+              {% endif %}
+            </div>
+            
+            <div class="flex-1">
+              <!-- Author -->
+              <div class="flex items-baseline space-x-1">
+                <span class="font-bold text-gray-900">{{ request.user.username }}</span>
+                <span class="text-gray-500 text-sm">·</span>
+                <span class="text-gray-500 text-sm">Just now</span>
+              </div>
+              
+              <!-- Title & Content -->
+              <h2 x-show="title" class="font-bold text-gray-900 mt-1" x-text="title"></h2>
+              <p x-show="content" class="text-gray-800 mt-1 whitespace-pre-line" x-text="content"></p>
+              <p x-show="!title && !content" class="text-gray-400 italic mt-1">Your post will appear here</p>
+              
+              <!-- Location -->
+              <div x-show="location" class="mt-2">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 max-w-full overflow-hidden">
+                  <i class="fas fa-map-marker-alt mr-1.5 flex-shrink-0"></i>
+                  <span class="truncate" x-text="location" title="Full location" :title="location"></span>
+                </span>
+              </div>
+              
+              <!-- Media Previews -->
+              <div x-show="imagePreviewUrls.length > 0" class="mt-3">
+                <div class="overflow-hidden rounded-xl" :class="{
+                  'grid grid-cols-2 gap-1': imagePreviewUrls.length === 2 || imagePreviewUrls.length === 4,
+                  'grid grid-cols-3 gap-1': imagePreviewUrls.length === 3,
+                  'grid grid-cols-2 grid-rows-2 gap-1': imagePreviewUrls.length > 4
+                }">
+                  <template x-for="(url, index) in imagePreviewUrls.slice(0, 4)" :key="index">
+                    <div class="aspect-square overflow-hidden relative">
+                      <img :src="url" class="w-full h-full object-cover">
+                      <!-- Show +X more overlay for last visible image when there are more than 4 -->
+                      <div x-show="index === 3 && imagePreviewUrls.length > 4" 
+                           class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center text-white font-bold">
+                        <span x-text="`+${imagePreviewUrls.length - 4} more`"></span>
+                      </div>
+                    </div>
+                  </template>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div x-show="previewTab === 'media'">
+        <!-- Media Gallery Preview -->
+        <div class="p-4">
+          <h3 class="font-medium text-gray-700 mb-3">Attached Media</h3>
+          
+          <div x-show="imagePreviewUrls.length === 0" class="text-center py-8 text-gray-500 italic">
+            No media added yet
+          </div>
+          
+          <div x-show="imagePreviewUrls.length > 0" class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <template x-for="(url, index) in imagePreviewUrls" :key="index">
+              <div class="relative group">
+                <div class="aspect-square rounded-lg overflow-hidden">
+                  <img :src="url" class="w-full h-full object-cover">
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Compose Mode -->
+    <form x-show="!showPreview" method="post" enctype="multipart/form-data" id="create-note-form" class="p-4" @submit.prevent="submitForm()">
+      {% csrf_token %}
+      
+      <div class="flex space-x-3">
+        <!-- User Avatar -->
+        <div class="flex-shrink-0">
+          {% if request.user.profile and request.user.profile.avatar %}
+            <img src="{{ request.user.profile.avatar.url }}" alt="{{ request.user.username }}" class="w-10 h-10 rounded-full object-cover">
+          {% else %}
+            <div class="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-500">
+              <i class="fas fa-user"></i>
+            </div>
+          {% endif %}
+        </div>
+        
+        <!-- Form Inputs -->
+        <div class="flex-1 space-y-4">
+          <!-- Title -->
+          <input type="text" id="title" name="title" x-model="title" 
+                 class="w-full border-0 focus:ring-0 text-lg font-medium placeholder-gray-400"
+                 placeholder="Add a title" required>
+          
+          <!-- Content -->
+          <textarea id="content" name="content" x-model="content" rows="5"
+                    class="w-full border-0 focus:ring-0 resize-none placeholder-gray-400"
+                    placeholder="What's happening on your travels?" required></textarea>
+          
+          <!-- Media Previews -->
+          <div x-show="imagePreviewUrls.length > 0" class="mt-2">
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <template x-for="(url, index) in imagePreviewUrls" :key="index">
+                <div class="relative group">
+                  <div class="aspect-square rounded-lg overflow-hidden">
+                    <img :src="url" class="w-full h-full object-cover">
+                  </div>
+                  <button type="button" @click="removeImage(index)" 
+                          class="absolute top-1 right-1 bg-black bg-opacity-75 rounded-full p-1 text-white hover:bg-opacity-100 transition-opacity transform">
+                    <i class="fas fa-times"></i>
+                  </button>
+                </div>
+              </template>
+            </div>
+          </div>
+          
+          <!-- Location Input -->
+          <div class="flex items-center">
+            <i class="fas fa-map-marker-alt text-gray-400 mr-2"></i>
+            <input type="text" id="location" name="location" x-model="location"
+                   class="flex-1 border-0 focus:ring-0 text-sm placeholder-gray-400 truncate"
+                   placeholder="Add location" readonly @click="showLocationModal = true">
+            <button type="button" 
+                    @click="showLocationModal = true" 
+                    data-open-location-modal
+                    class="ml-2 text-gray-400 hover:text-gray-500">
+              <i class="fas fa-map"></i>
+            </button>
+            <input type="hidden" id="latitude" name="latitude" :value="locationDetails.lat">
+            <input type="hidden" id="longitude" name="longitude" :value="locationDetails.lng">
+          </div>
+          
+          <!-- Media Upload & Submit -->
+          <div class="flex items-center justify-between pt-3 border-t border-gray-100">
+            <!-- Media Upload Area -->
+            <div class="flex space-x-2">
+              <!-- Image Upload Button -->
+              <div class="relative">
+                <label for="images" class="cursor-pointer block rounded-full p-2 text-purple-500 hover:bg-purple-50 transition"
+                       :class="{'text-purple-700 bg-purple-50': imagePreviewUrls.length > 0}">
+                  <i class="far fa-image"></i>
+                </label>
+                <input type="file" id="images" name="images" multiple accept="image/*" 
+                       class="hidden" 
+                       @change="handleImageSelect">
+              </div>
+              
+              <!-- Location Button -->
+              <button type="button" 
+                      @click="showLocationModal = true"
+                      data-open-location-modal
+                      class="rounded-full p-2 text-purple-500 hover:bg-purple-50 transition"
+                      :class="{'text-purple-700 bg-purple-50': location}">
+                <i class="fas fa-map-marker-alt"></i>
+              </button>
+            </div>
+            
+            <!-- Submit Button -->
+            <button type="submit" 
+                    :disabled="(!title && !content && imagePreviewUrls.length === 0) || isSubmitting"
+                    :class="{'bg-purple-600 hover:bg-purple-700': (title || content || imagePreviewUrls.length > 0) && !isSubmitting, 
+                             'bg-purple-300 cursor-not-allowed': !title && !content && imagePreviewUrls.length === 0,
+                             'bg-purple-400 cursor-wait': isSubmitting}"
+                    class="inline-flex items-center px-4 py-1.5 border border-transparent text-sm font-medium rounded-full shadow-sm text-white transition-colors">
+              <span x-show="!isSubmitting">Post</span>
+              <span x-show="isSubmitting"><i class="fas fa-spinner fa-spin mr-2"></i> Posting...</span>
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Drag & Drop Area - Always visible until submitted -->
+      <div class="mt-4 border-2 border-dashed rounded-lg p-6 text-center relative"
+           :class="{'border-purple-300 bg-purple-50': dragActive, 'border-gray-300 hover:border-purple-300 hover:bg-gray-50': !dragActive}"
+           @dragenter.prevent="dragActive = true"
+           @dragleave.prevent="dragActive = false"
+           @dragover.prevent="dragActive = true"
+           @drop.prevent="handleImageDrop($event)">
+        <div class="flex flex-col items-center pointer-events-none">
+          <i class="far fa-images text-3xl mb-2" :class="dragActive ? 'text-purple-500' : 'text-gray-400'"></i>
+          <span class="text-sm text-gray-500">
+            <span x-show="imagePreviewUrls.length === 0">Drag & drop images here, or <label for="drop-images" class="text-purple-600 cursor-pointer">browse</label></span>
+            <span x-show="imagePreviewUrls.length > 0">Drop more images here, or <label for="drop-images" class="text-purple-600 cursor-pointer">browse</label></span>
+          </span>
+        </div>
+        <input type="file" id="drop-images" name="drop_images" multiple accept="image/*" 
+               class="absolute opacity-0 inset-0 w-full h-full cursor-pointer" 
+               @change="handleImageSelect">
+      </div>
+    </form>
+  </div>
+  
+  <!-- Action Buttons -->
+  <div class="flex justify-between">
+    <a href="{% url 'home' %}" class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-full text-gray-700 bg-white hover:bg-gray-50">
+      <i class="fas fa-arrow-left mr-2"></i>Back
+    </a>
+  </div>
+  
+  <!-- Location Modal -->
+  <div x-show="showLocationModal" x-cloak
+       class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+       @click.self="showLocationModal = false">
+    <div class="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-medium">Add Location</h3>
+        <button type="button" @click="showLocationModal = false" class="text-gray-400 hover:text-gray-500">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      
+      <div class="mb-4">
+        <label for="modal-location" class="block text-sm font-medium text-gray-700 mb-1">Location</label>
+        <div class="flex mb-2">
+          <input type="text" id="modal-location" class="w-full rounded-md border-gray-300" 
+                 x-model="location" placeholder="Enter a location" readonly>
+          <button type="button" @click="getCurrentLocation()" class="ml-2 px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600" data-get-location>
+            <i class="fas fa-location-arrow"></i>
+          </button>
+        </div>
+        
+        <!-- Map Container with explicit height -->
+        <div class="w-full h-[300px] bg-gray-100 rounded-md mb-4" id="location-map" style="height:300px !important; min-height:300px;">
+          <!-- Loading indicator that will be replaced by the map -->
+          <div class="w-full h-full flex items-center justify-center text-gray-500">
+            <div class="text-center">
+              <i class="fas fa-spinner fa-spin text-3xl mb-2"></i>
+              <p>Loading map...</p>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Current coordinates display -->
+        <div class="text-xs text-gray-500 mb-2" x-show="locationDetails.lat && locationDetails.lng">
+          Selected coordinates: <span x-text="`${locationDetails.lat?.toFixed(6)}, ${locationDetails.lng?.toFixed(6)}`"></span>
+        </div>
+      </div>
+      
+      <div class="flex justify-between">
+        <button type="button" @click="location = ''; locationDetails = {lat: null, lng: null, address: ''}; showLocationModal = false" class="px-4 py-2 text-red-600 hover:bg-red-50 rounded-md">
+          Clear Location
+        </button>
+        <button type="button" @click="showLocationModal = false" class="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700">
+          Done
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+  let map = null;
+  let marker = null;
+  let mapInitialized = false;
+  
+  function updateLocation(lat, lng) {
+    const alpineData = getAlpineData();
+    if (!alpineData) return;
+    
+    alpineData.locationDetails.lat = lat;
+    alpineData.locationDetails.lng = lng;
+
+    const latInput = document.getElementById('latitude');
+    const lngInput = document.getElementById('longitude');
+    const locationInput = document.getElementById('location');
+    
+    if (latInput) latInput.value = lat;
+    if (lngInput) lngInput.value = lng;
+    
+    alpineData.location = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+    
+    fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=en`)
+      .then(response => response.json())
+      .then(data => {
+        if (data && data.display_name) {
+          alpineData.location = data.display_name;
+          alpineData.locationDetails.address = data.display_name;
+          if (locationInput) locationInput.value = data.display_name;
+        }
+      })
+      .catch(error => {
+        console.error('Error geocoding:', error);
+      });
+  }
+  
+  function getAlpineData() {
+    const alpine = document.querySelector('[x-data]');
+    return alpine && alpine.__x ? alpine.__x.$data : null;
+  }
+  
+  function initMap() {
+    const mapContainer = document.getElementById('location-map');
+    if (!mapContainer) return;
+    
+    if (mapContainer.offsetParent === null) {
+      setTimeout(initMap, 100);
+      return;
+    }
+    
+    mapContainer.innerHTML = '';
+    mapContainer.style.height = '300px';
+    
+    if (map) {
+      map.remove();
+      map = null;
+    }
+    
+    try {
+      map = L.map('location-map').setView([20, 0], 2);
+      
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap contributors'
+      }).addTo(map);
+      
+      setTimeout(function() {
+        if (map) map.invalidateSize();
+      }, 200);
+      
+      map.on('click', function(e) {
+        const lat = e.latlng.lat;
+        const lng = e.latlng.lng;
+        
+        if (marker) {
+          marker.setLatLng(e.latlng);
+        } else {
+          marker = L.marker(e.latlng).addTo(map);
+        }
+        
+        updateLocation(lat, lng);
+        
+        setTimeout(() => {
+          const latInput = document.getElementById('latitude');
+          const lngInput = document.getElementById('longitude');
+          const locationInput = document.getElementById('location');
+          
+          if (latInput) latInput.value = lat;
+          if (lngInput) lngInput.value = lng;
+          
+          if (locationInput && (locationInput.value === '' || locationInput.value.includes(','))) {
+            fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=en`)
+              .then(response => response.json())
+              .then(data => {
+                if (data && data.display_name) {
+                  locationInput.value = data.display_name;
+                }
+              })
+              .catch(error => {
+                console.error('Error geocoding:', error);
+              });
+          }
+        }, 100);
+      });
+      
+      const alpineData = getAlpineData();
+      if (alpineData && alpineData.locationDetails.lat && alpineData.locationDetails.lng) {
+        const lat = alpineData.locationDetails.lat;
+        const lng = alpineData.locationDetails.lng;
+        
+        map.setView([lat, lng], 13);
+        marker = L.marker([lat, lng]).addTo(map);
+      }
+      
+      mapInitialized = true;
+      console.log('Map initialized successfully');
+    } catch (error) {
+      console.error('Error initializing map:', error);
+    }
+  }
+  
+  document.addEventListener('click', function(event) {
+    if (event.target.closest('[data-open-location-modal]') || 
+        (event.target.closest('button') && event.target.closest('button').getAttribute('@click') && 
+         event.target.closest('button').getAttribute('@click').includes('showLocationModal = true'))) {
+      
+      setTimeout(initMap, 100);
+    }
+  });
+  
+  const alpine = document.querySelector('[x-data]');
+  if (alpine && alpine.__x) {
+    alpine.__x.$watch('showLocationModal', function(isOpen) {
+      if (isOpen) {
+        setTimeout(initMap, 200);
+      }
+    });
+  }
+  
+  document.querySelectorAll('button').forEach(button => {
+    if (button.innerHTML.includes('location-arrow') || button.hasAttribute('data-get-location')) {
+      button.addEventListener('click', function() {
+        if (!mapInitialized) {
+          initMap();
+        }
+        
+        if (navigator.geolocation) {
+          const alpineData = getAlpineData();
+          if (alpineData) {
+            alpineData.location = 'Detecting your location...';
+          }
+          
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              const lat = position.coords.latitude;
+              const lng = position.coords.longitude;
+              
+              if (map) {
+                map.setView([lat, lng], 13);
+                
+                if (marker) {
+                  marker.setLatLng([lat, lng]);
+                } else {
+                  marker = L.marker([lat, lng]).addTo(map);
+                }
+                
+                map.invalidateSize();
+                
+                updateLocation(lat, lng);
+                
+                setTimeout(() => {
+                  const latInput = document.getElementById('latitude');
+                  const lngInput = document.getElementById('longitude');
+                  const locationInput = document.getElementById('location');
+                  
+                  if (latInput) latInput.value = lat;
+                  if (lngInput) lngInput.value = lng;
+                  
+                  if (locationInput && (locationInput.value === '' || locationInput.value.includes(','))) {
+                    fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=en`)
+                      .then(response => response.json())
+                      .then(data => {
+                        if (data && data.display_name) {
+                          locationInput.value = data.display_name;
+                        }
+                      })
+                      .catch(error => {
+                        console.error('Error geocoding:', error);
+                      });
+                  }
+                }, 100);
+              }
+            },
+            (error) => {
+              console.error('Error getting location:', error);
+              const alpineData = getAlpineData();
+              if (alpineData) {
+                alpineData.location = '';
+              }
+              alert('Unable to get your location. Please select a location on the map instead.');
+            }
+          );
+        } else {
+          alert('Geolocation is not supported by your browser. Please select a location on the map instead.');
+        }
+      });
+    }
+  });
+});;;;
+</script>
+{% endblock main %}

@@ -1,0 +1,48 @@
+<div id="notes-feed" class="space-y-6">
+  {% if notes %}
+    {% for note in notes %}
+      <div class="bg-white p-4 rounded shadow">
+        <h3 class="text-xl font-semibold mb-2">
+          <a href="{% url 'note_detail' note_id=note.id %}" class="text-blue-600 hover:underline">
+            {{ note.title }}
+          </a>
+        </h3>
+        {% if note.images.all %}
+          {% if note.images.all|length > 1 %}
+            <div x-data="{ current: 0, images: [ {% for img in note.images.all %}'{{ img.image.url }}'{% if not forloop.last %}, {% endif %}{% endfor %} ] }" class="relative mb-2">
+              <div class="relative" style="padding-top: 56.25%;">
+                <template x-for="(image, index) in images" :key="index">
+                  <img x-show="current === index" :src="image" alt="Image" class="absolute top-0 left-0 w-full h-full object-cover">
+                </template>
+              </div>
+              <button @click="current = current > 0 ? current - 1 : images.length - 1" class="absolute top-1/2 left-2 transform -translate-y-1/2 bg-gray-800 bg-opacity-50 text-white px-2 py-1 rounded">
+                <i class="fa-solid fa-chevron-left"></i>
+              </button>
+              <button @click="current = current < images.length - 1 ? current + 1 : 0" class="absolute top-1/2 right-2 transform -translate-y-1/2 bg-gray-800 bg-opacity-50 text-white px-2 py-1 rounded">
+                <i class="fa-solid fa-chevron-right"></i>
+              </button>
+            </div>
+          {% else %}
+            <div class="w-full h-64 overflow-hidden">
+              <img src="{{ note.images.all.0.image.url }}" alt="Image" class="w-full h-full object-cover">
+            </div>
+          {% endif %}
+        {% endif %}
+        <p class="text-gray-700 mt-2">{{ note.content|truncatewords:40 }}</p>
+        <div class="mt-2 text-sm text-gray-500">
+          {{ note.created_at|date:"d.m.Y" }}
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <p class="text-gray-600">You don't have any posts.</p>
+  {% endif %}
+</div>
+<div id="pagination"
+     {% if notes.has_next %}
+       data-next-page="{{ notes.next_page_number }}"
+     {% else %}
+       data-next-page=""
+     {% endif %}
+     data-has-next="{{ notes.has_next|yesno:'true,false' }}">
+</div>
