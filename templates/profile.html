@@ -1,0 +1,1179 @@
+{% extends "components/base.html" %}
+{% load static %}
+{% block title %}{{ user_profile.username }} | Profile{% endblock title %}
+
+{% block main %}
+<style>
+    [x-cloak] { display: none !important; }
+    .tab-active { @apply text-purple-700 border-purple-700 font-semibold; }
+    .tab-inactive { @apply text-gray-500 border-transparent hover:text-purple-600 hover:border-purple-400; }
+    .stat-item { @apply bg-white rounded-lg p-4 shadow-sm flex flex-col items-center justify-center transition; }
+    
+    .twitter-post {
+        @apply border-b border-gray-200 hover:bg-gray-50 transition-colors duration-200;
+    }
+    .twitter-post:last-child {
+        @apply border-b-0;
+    }
+    .avatar-placeholder {
+        @apply w-full h-full rounded-full bg-purple-100 flex items-center justify-center text-purple-500;
+    }
+    
+    /* Map styles */
+    #travel-map {
+        width: 100%;
+        height: 100%;
+        z-index: 1;
+    }
+    
+    .place-item {
+        transition: all 0.2s ease;
+    }
+    
+    .place-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+    
+    .leaflet-marker-icon {
+        transition: transform 0.2s ease;
+    }
+    
+    .leaflet-marker-icon:hover {
+        transform: scale(1.2);
+    }
+    
+    /* Enhanced mobile responsiveness */
+    @media (max-width: 640px) {
+        .profile-container {
+            @apply px-2;
+        }
+        
+        .profile-stats {
+            @apply text-xs space-x-3;
+        }
+        
+        .profile-actions {
+            @apply flex-col space-y-2 space-x-0;
+        }
+        
+        .profile-actions button, .profile-actions a {
+            @apply w-full justify-center;
+        }
+        
+        .tab-item {
+            @apply text-xs px-2;
+        }
+    }
+    
+    /* iPad specific */
+    @media (min-width: 768px) and (max-width: 1024px) {
+        .profile-container {
+            @apply max-w-3xl;
+        }
+        
+        #map-container {
+            height: 60vh !important;
+        }
+    }
+    
+    /* Better small phone adaptation */
+    @media (max-width: 380px) {
+        .profile-container {
+            @apply px-2;
+        }
+        
+        .profile-stats {
+            @apply text-xs space-x-2;
+        }
+        
+        .profile-actions {
+            @apply flex-col space-y-2 space-x-0 ml-20;
+        }
+        
+        .profile-actions button, .profile-actions a {
+            @apply w-full justify-center text-xs py-1.5;
+        }
+        
+        .ml-24 {
+            @apply ml-20;
+        }
+        
+        .tab-item {
+            @apply text-xs px-1.5;
+        }
+        
+        #map-container {
+            @apply h-48;
+        }
+    }
+    
+    /* Landscape orientation for mobile */
+    @media (max-height: 500px) and (orientation: landscape) {
+        .profile-container {
+            @apply py-4;
+        }
+        
+        .cover-photo-area {
+            @apply h-32 mb-10;
+        }
+        
+        .profile-picture {
+            @apply -bottom-6 w-16 h-16;
+        }
+        
+        #map-container {
+            @apply h-64;
+        }
+    }
+</style>
+
+<div class="max-w-4xl mx-auto px-4 sm:px-6 py-8 profile-container" x-data="{ 
+    showModal: false,
+    activeTab: 'posts',
+    showCoverPhotoOptions: false,
+    showSocialLinks: false,
+    updateMap() {
+      if (this.activeTab === 'map' && typeof L !== 'undefined') {
+        setTimeout(() => {
+          if (window.travelMap) {
+            window.travelMap.invalidateSize();
+          } else {
+            const event = new Event('initmap');
+            document.dispatchEvent(event);
+          }
+        }, 100);
+      }
+    }
+}" @tab-changed="updateMap">
+  <!-- Cover Photo Area with Parallax Effect -->
+  <div class="relative h-40 sm:h-56 md:h-72 rounded-xl overflow-hidden mb-16 md:mb-20 bg-gradient-to-r from-purple-900 via-purple-800 to-purple-700 shadow-md cover-photo-area">
+    {% if user_profile.profile and user_profile.profile.cover_photo %}
+      <div class="absolute inset-0 bg-black bg-opacity-20"></div>
+      <img src="{{ user_profile.profile.cover_photo.url }}" alt="Cover" class="w-full h-full object-cover transform hover:scale-105 transition-transform duration-500">
+    {% else %}
+      <div class="absolute inset-0 bg-gradient-to-r from-purple-900 via-purple-800 to-purple-700 opacity-50"></div>
+      <div class="absolute inset-0 overflow-hidden">
+        <div class="h-full w-full">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="none" class="h-full w-full opacity-10">
+            <path d="M0,0 L100,0 L100,100 L0,100 Z" fill="white"></path>
+            <path d="M0,0 C30,20 70,20 100,0 V100 H0 Z" fill="white"></path>
+          </svg>
+        </div>
+      </div>
+    {% endif %}
+    
+    <!-- Profile picture overlapping the cover with hover effect -->
+    <div class="absolute -bottom-10 sm:-bottom-12 left-4 sm:left-8 rounded-xl bg-white p-1.5 shadow-md hover:shadow-lg transition-shadow group profile-picture">
+      <div class="relative">
+        {% if user_profile.profile and user_profile.profile.avatar %}
+          <img src="{{ user_profile.profile.avatar.url }}" alt="Avatar" class="w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 rounded-full object-cover border-2 border-white group-hover:border-purple-200 transition-colors">
+        {% else %}
+          <div class="w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 rounded-full bg-purple-100 flex items-center justify-center text-purple-500 border-2 border-white group-hover:border-purple-200 transition-colors">
+            <i class="fa-solid fa-user text-3xl sm:text-4xl"></i>
+          </div>
+        {% endif %}
+        {% if is_owner %}
+          <button @click="showModal = true" class="absolute bottom-0 right-0 bg-white hover:bg-gray-100 text-purple-700 p-1.5 rounded-full shadow-md transition transform hover:scale-110" title="Edit Profile">
+            <i class="fa-solid fa-camera"></i>
+          </button>
+        {% endif %}
+      </div>
+    </div>
+    
+    <!-- Cover photo options button (only for owner) -->
+    {% if is_owner %}
+      <button @click="showCoverPhotoOptions = !showCoverPhotoOptions" class="absolute top-4 right-4 bg-white hover:bg-gray-100 text-purple-700 p-2 rounded-full shadow-md transition transform hover:scale-110">
+        <i class="fa-solid fa-camera"></i>
+      </button>
+      
+      <div x-show="showCoverPhotoOptions" x-cloak @click.away="showCoverPhotoOptions = false" 
+           class="absolute top-14 right-4 bg-white rounded-lg shadow-lg p-2 z-10"
+           x-transition:enter="transition ease-out duration-200"
+           x-transition:enter-start="opacity-0 transform scale-95"
+           x-transition:enter-end="opacity-100 transform scale-100"
+           x-transition:leave="transition ease-in duration-150"
+           x-transition:leave-start="opacity-100 transform scale-100"
+           x-transition:leave-end="opacity-0 transform scale-95">
+        <a href="{% url 'edit_profile' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 rounded transition">
+          <i class="fa-solid fa-upload mr-2"></i> Upload Cover Photo
+        </a>
+        <button class="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 hover:text-red-700 rounded transition">
+          <i class="fa-solid fa-trash-alt mr-2"></i> Remove Cover Photo
+        </button>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Profile Info Section -->
+  <div class="px-2 sm:px-6 mb-6">
+    <!-- Adjusted spacing for username info to accommodate raised avatar -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-6">
+      <div class="ml-24 sm:ml-28 md:ml-32 pt-2">
+        <h1 class="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800">
+          {% if user_profile.first_name or user_profile.last_name %}
+            {{ user_profile.first_name }} {{ user_profile.last_name }}
+          {% else %}
+            {{ user_profile.username }}
+          {% endif %}
+        </h1>
+        
+        <div class="flex flex-wrap items-center text-gray-500 mt-1">
+          <i class="fa-solid fa-user-tag mr-2"></i>
+          <span class="mr-2">@{{ user_profile.username }}</span>
+          {% if user_profile.profile and user_profile.profile.location %}
+            <span class="hidden sm:inline mx-1">•</span>
+            <div class="flex items-center mt-1 sm:mt-0">
+              <i class="fa-solid fa-location-dot mr-1"></i>
+              <span>{{ user_profile.profile.location }}</span>
+            </div>
+          {% endif %}
+        </div>
+        
+        {% if user_profile.profile and user_profile.profile.bio %}
+          <p class="mt-2 text-sm sm:text-base text-gray-600 max-w-2xl line-clamp-2 sm:line-clamp-none">{{ user_profile.profile.bio }}</p>
+        {% endif %}
+        
+        <!-- Social media links with hover effects -->
+        <div class="flex mt-2 items-center">
+        <div class="flex flex-wrap gap-2 sm:gap-3">
+          {% if user_profile.profile and user_profile.profile.social_links %}
+            {% for platform, username in user_profile.profile.social_links.items %}
+              {% if platform == "twitter" %}
+                <a href="https://twitter.com/{{ username }}" target="_blank" class="text-gray-500 hover:text-purple-600 transition transform hover:scale-110">
+                  <i class="fab fa-twitter text-lg"></i>
+                </a>
+              {% elif platform == "facebook" %}
+                <a href="https://facebook.com/{{ username }}" target="_blank" class="text-gray-500 hover:text-purple-600 transition transform hover:scale-110">
+                  <i class="fab fa-facebook text-lg"></i>
+                </a>
+              {% elif platform == "instagram" %}
+                <a href="https://instagram.com/{{ username }}" target="_blank" class="text-gray-500 hover:text-purple-600 transition transform hover:scale-110">
+                  <i class="fab fa-instagram text-lg"></i>
+                </a>
+              {% elif platform == "linkedin" %}
+                <a href="https://linkedin.com/in/{{ username }}" target="_blank" class="text-gray-500 hover:text-purple-600 transition transform hover:scale-110">
+                  <i class="fab fa-linkedin text-lg"></i>
+                </a>
+              {% elif platform == "github" %}
+                <a href="https://github.com/{{ username }}" target="_blank" class="text-gray-500 hover:text-purple-600 transition transform hover:scale-110">
+                  <i class="fab fa-github text-lg"></i>
+                </a>
+              {% else %}
+                <a href="{{ username }}" target="_blank" class="text-gray-500 hover:text-purple-600 transition transform hover:scale-110">
+                  <i class="fab fa-{{ platform|lower }} text-lg"></i>
+                </a>
+              {% endif %}
+            {% endfor %}
+          {% endif %}
+          
+          {% if is_owner %}
+            <button @click="showSocialLinks = !showSocialLinks" class="text-gray-400 hover:text-purple-600 transition ml-1 transform hover:scale-110">
+              <i class="fa-solid fa-plus-circle"></i>
+            </button>
+            
+            <div x-show="showSocialLinks" x-cloak @click.away="showSocialLinks = false" 
+                class="absolute mt-8 bg-white rounded-lg shadow-lg p-3 z-10 w-64"
+                x-transition:enter="transition ease-out duration-200"
+                x-transition:enter-start="opacity-0 transform scale-95"
+                x-transition:enter-end="opacity-100 transform scale-100"
+                x-transition:leave="transition ease-in duration-150"
+                x-transition:leave-start="opacity-100 transform scale-100"
+                x-transition:leave-end="opacity-0 transform scale-95">
+              <h3 class="font-semibold mb-2">Add Social Media</h3>
+              <a href="{% url 'edit_profile' %}" class="block text-sm text-purple-600 hover:text-purple-800 transition">
+                Edit social profiles in settings
+              </a>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+        
+        <!-- Member since with animation -->
+        <div class="text-xs sm:text-sm text-gray-500 mt-2 flex items-center">
+          <i class="fa-regular fa-calendar mr-1.5"></i> 
+          <span>Member since {{ user_profile.date_joined|date:"F Y" }}</span>
+        </div>
+      </div>
+      
+      <!-- Action Buttons - Responsive -->
+      <div class="mt-4 sm:mt-0 flex profile-actions space-x-2 sm:space-x-3 ml-24 sm:ml-0">
+        {% if is_owner %}
+          <a href="{% url 'edit_profile' %}" class="bg-purple-600 hover:bg-purple-700 text-white px-3 sm:px-4 py-2 rounded-full flex items-center transition shadow-sm transform hover:shadow-md hover:-translate-y-0.5 text-sm">
+            <i class="fa-solid fa-user-pen mr-1 sm:mr-2"></i>
+            <span>Edit Profile</span>
+          </a>
+        {% else %}
+          <!-- Follow button with data attributes for JS interactions -->
+          <button class="bg-purple-600 hover:bg-purple-700 text-white px-3 sm:px-4 py-2 rounded-full flex items-center transition shadow-sm follow-button transform hover:shadow-md hover:-translate-y-0.5 text-sm"
+                  data-username="{{ user_profile.username }}"
+                  data-following="{{ is_following|lower }}">
+            <i class="fas {% if is_following %}fa-user-minus{% else %}fa-user-plus{% endif %} mr-1 sm:mr-2"></i>
+            <span>{% if is_following %}Unfollow{% else %}Follow{% endif %}</span>
+          </button>
+
+          <div class="flex space-x-6 mt-4">
+            <div class="text-center">
+              <span class="block text-lg font-bold follower-count">{{ followers_count }}</span>
+              <span class="text-sm text-gray-500">Followers</span>
+            </div>
+            <div class="text-center">
+              <span class="block text-lg font-bold">{{ following_count }}</span>
+              <span class="text-sm text-gray-500">Following</span>
+            </div>
+          </div>
+          <!-- Message button (placeholder) -->
+          <button class="bg-white hover:bg-gray-100 border border-gray-300 text-gray-700 px-3 sm:px-4 py-2 rounded-full flex items-center transition shadow-sm transform hover:shadow-md hover:-translate-y-0.5 text-sm">
+            <i class="fa-solid fa-envelope mr-1 sm:mr-2"></i>
+            <span>Message</span>
+          </button>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Stats Cards with Animation - Responsive -->
+    <div class="flex profile-stats space-x-4 sm:space-x-6 mb-6">
+      <div class="flex items-center group">
+        <span class="font-bold text-gray-900 mr-1 group-hover:underline">{{ user_profile.note_set.filter.count }}</span>
+        <span class="text-gray-500 text-sm">Posts</span>
+      </div>
+      <div class="flex items-center group">
+        <span id="follower-count" class="font-bold text-gray-900 mr-1 group-hover:underline">{{ followers_count }}</span>
+        <span class="text-gray-500 text-sm">Followers</span>
+      </div>
+      <div class="flex items-center group">
+        <span class="font-bold text-gray-900 mr-1 group-hover:underline">{{ following_count }}</span>
+        <span class="text-gray-500 text-sm">Following</span>
+      </div>
+    </div>
+
+    <!-- Tabs Navigation - Responsive -->
+    <div class="border-b border-gray-200 mb-4 overflow-x-auto scrollbar-none">
+      <nav class="flex min-w-full" style="min-width: 300px;" aria-label="Tabs">
+        <button @click="activeTab = 'posts'" :class="activeTab === 'posts' ? 'tab-active' : 'tab-inactive'" 
+                class="border-b-2 py-3 px-3 sm:px-4 transition focus:outline-none text-sm sm:text-base whitespace-nowrap tab-item">
+          <span>Posts</span>
+        </button>
+        <button @click="activeTab = 'photos'" :class="activeTab === 'photos' ? 'tab-active' : 'tab-inactive'" 
+                class="border-b-2 py-3 px-3 sm:px-4 transition focus:outline-none text-sm sm:text-base whitespace-nowrap tab-item">
+          <span>Photos</span>
+        </button>
+        <button @click="activeTab = 'liked'" :class="activeTab === 'liked' ? 'tab-active' : 'tab-inactive'" 
+                class="border-b-2 py-3 px-3 sm:px-4 transition focus:outline-none text-sm sm:text-base whitespace-nowrap tab-item">
+          <span>Likes</span>
+        </button>
+        <button @click="activeTab = 'map'; $dispatch('tab-changed')" :class="activeTab === 'map' ? 'tab-active' : 'tab-inactive'" 
+                class="border-b-2 py-3 px-3 sm:px-4 transition focus:outline-none text-sm sm:text-base whitespace-nowrap tab-item">
+          <span>Map</span>
+        </button>
+      </nav>
+    </div>
+
+    <!-- Tab Contents with Transitions -->
+    <div class="min-h-[400px]">
+      <!-- Posts Tab - Twitter Style -->
+      <div x-show="activeTab === 'posts'" 
+           x-transition:enter="transition ease-out duration-300"
+           x-transition:enter-start="opacity-0"
+           x-transition:enter-end="opacity-100"
+           x-transition:leave="transition ease-in duration-200"
+           x-transition:leave-start="opacity-100"
+           x-transition:leave-end="opacity-0">
+        
+        <!-- Twitter-style Timeline -->
+        <div id="notes-container" class="bg-white rounded-xl shadow-sm overflow-hidden">
+          {% if user_profile.note_set.exists %}
+            <div id="notes-feed" class="divide-y divide-gray-200">
+              {% for note in notes %}
+                <div class="twitter-post p-3 sm:p-4">
+                  <div class="flex space-x-2 sm:space-x-3">
+                    <!-- User Avatar -->
+                    <div class="flex-shrink-0">
+                      <a href="{% url 'profile' username=note.author.username %}" class="block">
+                        {% if note.author.profile.avatar %}
+                          <img src="{{ note.author.profile.avatar.url }}" alt="{{ note.author.username }}" class="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover">
+                        {% else %}
+                          <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-purple-100 flex items-center justify-center text-purple-500">
+                            <i class="fas fa-user"></i>
+                          </div>
+                        {% endif %}
+                      </a>
+                    </div>
+                    
+                    <!-- Post Content -->
+                    <div class="flex-1 min-w-0">
+                      <!-- Post Header -->
+                      <div class="flex flex-wrap items-center">
+                        <a href="{% url 'profile' username=note.author.username %}" class="font-medium text-gray-900 hover:underline mr-1">
+                          {{ note.author.username }}
+                        </a>
+                        <span class="mx-1 text-gray-400">•</span>
+                        <span class="text-gray-500 text-xs sm:text-sm">
+                          <time datetime="{{ note.created_at|date:'c' }}">{{ note.created_at|date:"j M, Y" }} <span class="text-purple-400">•</span> {{ note.created_at|date:"H:i:s" }}</time>
+                        </span>
+                      </div>
+                      
+                      <!-- Post Title & Content -->
+                      <div class="mt-1">
+                        <a href="{% url 'note_detail' note_id=note.id %}" class="hover:underline">
+                          <h3 class="font-bold text-gray-900 text-sm sm:text-base">{{ note.title }}</h3>
+                        </a>
+                        <p class="text-gray-800 mt-1 text-sm sm:text-base">
+                          {{ note.content|truncatechars:120 }}
+                          <a href="{% url 'note_detail' note_id=note.id %}" class="text-purple-600 hover:text-purple-800 text-xs">Read more</a>
+                        </p>
+                      </div>
+                      
+                      <!-- Post Media -->
+                      {% if note.images.all %}
+                        <div class="mt-2 overflow-hidden rounded-xl">
+                          <a href="{% url 'note_detail' note_id=note.id %}">
+                            <div class="relative aspect-video">
+                              {% with first_image=note.images.first %}
+                                <img src="{{ first_image.image.url }}" alt="{{ note.title }}" class="w-full h-full object-cover">
+                                {% if note.images.count > 1 %}
+                                  <div class="absolute bottom-2 right-2 bg-black bg-opacity-60 text-white text-xs py-1 px-2 rounded-full">
+                                    +{{ note.images.count|add:"-1" }}
+                                  </div>
+                                {% endif %}
+                              {% endwith %}
+                            </div>
+                          </a>
+                        </div>
+                      {% endif %}
+                      
+                      <!-- Post Actions -->
+                      <div class="mt-3 flex items-center justify-between text-gray-500 text-xs sm:text-sm">
+                        <!-- Comment Button -->
+                        <a href="{% url 'note_detail' note_id=note.id %}" class="flex items-center space-x-1 group">
+                          <div class="p-1 sm:p-1.5 rounded-full group-hover:bg-blue-50 group-hover:text-blue-500 transition-colors">
+                            <i class="far fa-comment"></i>
+                          </div>
+                          <span class="group-hover:text-blue-500">{{ note.comments.count }}</span>
+                        </a>
+                        
+                        <!-- Like Button -->
+                        <button class="flex items-center space-x-1 group like-post-button" 
+                                data-note-id="{{ note.id }}"
+                                data-liked="{% if request.user.is_authenticated and request.user in note.likes.all %}true{% else %}false{% endif %}">
+                          <div class="p-1 sm:p-1.5 rounded-full group-hover:bg-red-50 {% if request.user.is_authenticated and request.user in note.likes.all %}text-red-500 bg-red-50{% endif %} group-hover:text-red-500 transition-colors">
+                            <i class="{% if request.user.is_authenticated and request.user in note.likes.all %}fas{% else %}far{% endif %} fa-heart"></i>
+                          </div>
+                          <span class="group-hover:text-red-500 {% if request.user.is_authenticated and request.user in note.likes.all %}text-red-500{% endif %} like-count" data-note-id="{{ note.id }}">{{ note.likes.count }}</span>
+                        </button>
+                        
+                        <!-- Location -->
+                        {% if note.location %}
+                          <div class="hidden sm:flex items-center space-x-1 group">
+                            <div class="p-1 sm:p-1.5 rounded-full group-hover:bg-green-50 group-hover:text-green-500 transition-colors">
+                              <i class="fas fa-map-marker-alt"></i>
+                            </div>
+                            <span class="group-hover:text-green-500">{{ note.location }}</span>
+                          </div>
+                        {% endif %}
+                        
+                        <!-- Share Button -->
+                        <div class="relative" x-data="{ shareOpen: false }">
+                          <button @click="shareOpen = !shareOpen" class="p-1 sm:p-1.5 rounded-full hover:bg-purple-50 hover:text-purple-500 transition-colors">
+                            <i class="fas fa-share-alt"></i>
+                          </button>
+                          <div x-show="shareOpen" x-cloak @click.away="shareOpen = false"
+                               class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10"
+                               x-transition:enter="transition ease-out duration-100"
+                               x-transition:enter-start="transform opacity-0 scale-95"
+                               x-transition:enter-end="transform opacity-100 scale-100"
+                               x-transition:leave="transition ease-in duration-75"
+                               x-transition:leave-start="transform opacity-100 scale-100"
+                               x-transition:leave-end="transform opacity-0 scale-95">
+                            <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-purple-50">
+                              <i class="fab fa-twitter mr-2"></i> Share on Twitter
+                            </a>
+                            <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-purple-50">
+                              <i class="fab fa-facebook mr-2"></i> Share on Facebook
+                            </a>
+                            <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-purple-50">
+                              <i class="fas fa-link mr-2"></i> Copy Link
+                            </a>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+            
+            <!-- Pagination info for infinite scroll -->
+            <div id="pagination" class="hidden" 
+                 data-next-page="{% if notes.has_next %}{{ notes.next_page_number }}{% endif %}" 
+                 data-has-next="{{ notes.has_next|lower }}">
+            </div>
+          {% else %}
+            <!-- Empty State -->
+            <div class="p-6 text-center">
+              <div class="text-4xl sm:text-5xl text-gray-300 mb-4">
+                <i class="fas fa-feather-alt"></i>
+              </div>
+              <h3 class="text-base sm:text-lg font-medium text-gray-900 mb-1">No posts yet</h3>
+              <p class="text-sm text-gray-500">When {{ user_profile.username }} posts, they'll appear here.</p>
+              {% if is_owner %}
+                <a href="{% url 'create_note' %}" class="mt-4 inline-flex items-center px-3 sm:px-4 py-1.5 sm:py-2 border border-transparent rounded-full shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700">
+                  <i class="fas fa-plus mr-2"></i> Create your first post
+                </a>
+              {% endif %}
+            </div>
+          {% endif %}
+        </div>
+        
+        <!-- Sentinel for infinite scroll -->
+        <div id="scroll-sentinel" class="h-1"></div>
+        
+        <!-- Loader for pagination -->
+        <div id="loader" class="text-center mt-6 hidden">
+          <div class="inline-block animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-purple-700"></div>
+        </div>
+      </div>
+      
+      <!-- Photos Tab with Responsive Masonry Layout -->
+      <div x-show="activeTab === 'photos'" x-cloak
+          x-transition:enter="transition ease-out duration-300"
+          x-transition:enter-start="opacity-0"
+          x-transition:enter-end="opacity-100"
+          x-transition:leave="transition ease-in duration-200"
+          x-transition:leave-start="opacity-100"
+          x-transition:leave-end="opacity-0">
+        {% if photo_count > 0 %}
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {% for note in user_profile.note_set.all %}
+              {% if note.is_visible %}
+                {% for image in note.images.all %}
+                  <a href="{{ note.get_absolute_url }}" class="block overflow-hidden rounded-lg relative group transform transition hover:-translate-y-1 hover:shadow-md">
+                    <div class="aspect-square">
+                      <img src="{{ image.image.url }}" alt="{{ note.title }}" class="w-full h-full object-cover group-hover:scale-110 transition duration-500">
+                      <div class="absolute inset-0 bg-gradient-to-t from-black via-transparent opacity-0 group-hover:opacity-80 transition duration-300"></div>
+                      <div class="absolute inset-x-0 bottom-0 p-2 sm:p-3 opacity-0 group-hover:opacity-100 transform group-hover:translate-y-0 translate-y-4 transition duration-300">
+                        <h3 class="text-white text-xs sm:text-sm font-medium line-clamp-1">{{ note.title }}</h3>
+                        <div class="flex items-center text-xs text-white opacity-75 mt-1">
+                          <i class="far fa-calendar mr-1"></i>
+                          <span class="text-xs">{{ note.created_at|date:"M j, Y" }}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </a>
+                {% endfor %}
+              {% endif %}
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="text-center py-10 sm:py-12 bg-white rounded-xl shadow-sm">
+            <div class="text-4xl sm:text-6xl text-gray-300 mb-4">
+              <i class="fas fa-images"></i>
+            </div>
+            <p class="text-gray-500">No photos available</p>
+            {% if is_owner %}
+              <a href="{% url 'create_note' %}" class="mt-4 inline-flex items-center px-3 sm:px-4 py-2 border border-transparent rounded-full shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700">
+                <i class="fas fa-plus mr-2"></i> Add your first photo
+              </a>
+            {% endif %}
+          </div>
+        {% endif %}
+      </div>
+      
+      <!-- Liked Tab -->
+      <div x-show="activeTab === 'liked'" x-cloak
+          x-transition:enter="transition ease-out duration-300"
+          x-transition:enter-start="opacity-0"
+          x-transition:enter-end="opacity-100"
+          x-transition:leave="transition ease-in duration-200"
+          x-transition:leave-start="opacity-100"
+          x-transition:leave-end="opacity-0"
+          x-data="{ likesSubTab: 'received' }">
+        
+        <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+          {% if user_likes_data or received_likes_data %}
+            <!-- Secondary Tab Navigation -->
+            <div class="flex border-b border-gray-200">
+              <button @click="likesSubTab = 'received'" 
+                      :class="likesSubTab === 'received' ? 'bg-purple-50 text-purple-700 border-b-2 border-purple-700' : 'text-gray-500 hover:text-gray-700'"
+                      class="flex-1 py-3 px-4 text-sm font-medium text-center focus:outline-none transition">
+                <span class="flex items-center justify-center">
+                  <i class="fas fa-heart mr-2"></i> Received <span class="ml-1.5 bg-purple-100 text-purple-800 text-xs py-0.5 px-1.5 rounded-full">{{ received_likes_count }}</span>
+                </span>
+              </button>
+              <button @click="likesSubTab = 'given'" 
+                      :class="likesSubTab === 'given' ? 'bg-purple-50 text-purple-700 border-b-2 border-purple-700' : 'text-gray-500 hover:text-gray-700'"
+                      class="flex-1 py-3 px-4 text-sm font-medium text-center focus:outline-none transition">
+                <span class="flex items-center justify-center">
+                  <i class="fas fa-thumbs-up mr-2"></i> Given <span class="ml-1.5 bg-purple-100 text-purple-800 text-xs py-0.5 px-1.5 rounded-full">{{ user_likes_count }}</span>
+                </span>
+              </button>
+            </div>
+            
+            <!-- Received Likes Content -->
+            <div x-show="likesSubTab === 'received'">
+              <div class="divide-y divide-gray-200">
+                {% if received_likes_data %}
+                  {% for note, likes in received_likes_data %}
+                    <div class="p-4">
+                      <div class="flex justify-between mb-2">
+                        <a href="{% url 'note_detail' note_id=note.id %}" class="font-medium text-gray-900 hover:text-purple-700 hover:underline">
+                          {{ note.title }}
+                        </a>
+                        <span class="text-sm text-gray-500">
+                          <i class="fas fa-heart text-red-500 mr-1"></i> {{ likes|length }}
+                        </span>
+                      </div>
+                      <p class="text-sm text-gray-600 truncate">{{ note.content|truncatechars:100 }}</p>
+                      <div class="mt-2 flex items-center flex-wrap">
+                        <span class="text-xs text-gray-500 mr-2">Liked by:</span>
+                        {% for like in likes|slice:":5" %}
+                          <a href="{% url 'profile' username=like.username %}" class="group flex-shrink-0 mr-1 mt-1">
+                            <div class="w-6 h-6 rounded-full overflow-hidden bg-purple-100 border border-white group-hover:border-purple-200">
+                              {% if like.profile.avatar %}
+                                <img src="{{ like.profile.avatar.url }}" alt="{{ like.username }}" class="w-full h-full object-cover">
+                              {% else %}
+                                <div class="w-full h-full flex items-center justify-center text-purple-500">
+                                  <i class="fas fa-user text-xs"></i>
+                                </div>
+                              {% endif %}
+                            </div>
+                          </a>
+                        {% endfor %}
+                        {% if likes|length > 5 %}
+                          <span class="text-xs text-gray-500 mt-1">+{{ likes|length|add:"-5" }} more</span>
+                        {% endif %}
+                      </div>
+                    </div>
+                  {% endfor %}
+                {% else %}
+                  <div class="py-8 text-center">
+                    <div class="text-3xl text-gray-300 mb-2">
+                      <i class="far fa-heart"></i>
+                    </div>
+                    <p class="text-gray-500 text-sm">No likes received yet</p>
+                  </div>
+                {% endif %}
+              </div>
+            </div>
+            
+            <!-- Given Likes Content -->
+            <div x-show="likesSubTab === 'given'">
+              <div class="divide-y divide-gray-200">
+                {% if user_likes_data %}
+                  {% for note in user_likes_data %}
+                    <div class="p-4">
+                      <div class="flex space-x-3">
+                        <div class="flex-shrink-0">
+                          <a href="{% url 'profile' username=note.author.username %}">
+                            {% if note.author.profile.avatar %}
+                              <img src="{{ note.author.profile.avatar.url }}" alt="{{ note.author.username }}" class="w-10 h-10 rounded-full object-cover">
+                            {% else %}
+                              <div class="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-500">
+                                <i class="fas fa-user"></i>
+                              </div>
+                            {% endif %}
+                          </a>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                          <div class="flex items-center">
+                            <a href="{% url 'profile' username=note.author.username %}" class="font-medium text-gray-900 hover:underline mr-2">
+                              {{ note.author.username }}
+                            </a>
+                            <span class="text-gray-500 text-xs">{{ note.created_at|date:"M j, Y" }}</span>
+                          </div>
+                          <a href="{% url 'note_detail' note_id=note.id %}" class="hover:underline block mt-1">
+                            <h4 class="font-medium text-gray-900">{{ note.title }}</h4>
+                          </a>
+                          <p class="text-sm text-gray-600 mt-1">{{ note.content|truncatechars:120 }}</p>
+                          
+                          {% if note.images.all %}
+                            <div class="mt-2">
+                              <a href="{% url 'note_detail' note_id=note.id %}" class="block w-full h-32 rounded-lg overflow-hidden">
+                                <img src="{{ note.images.first.image.url }}" alt="{{ note.title }}" class="w-full h-full object-cover transition transform hover:scale-105">
+                              </a>
+                            </div>
+                          {% endif %}
+                          
+                          <div class="flex items-center mt-2 text-xs text-gray-500">
+                            <span class="flex items-center mr-4">
+                              <i class="far fa-comment mr-1"></i> {{ note.comments.count }}
+                            </span>
+                            <span class="flex items-center text-red-500">
+                              <i class="fas fa-heart mr-1"></i> {{ note.likes.count }}
+                            </span>
+                            {% if note.location %}
+                              <span class="flex items-center ml-4">
+                                <i class="fas fa-map-marker-alt mr-1"></i> {{ note.location }}
+                              </span>
+                            {% endif %}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  {% endfor %}
+                {% else %}
+                  <div class="py-8 text-center">
+                    <div class="text-3xl text-gray-300 mb-2">
+                      <i class="far fa-thumbs-up"></i>
+                    </div>
+                    <p class="text-gray-500 text-sm">No likes given yet</p>
+                    <p class="text-xs text-gray-400 mt-1">Like posts to see them here</p>
+                  </div>
+                {% endif %}
+              </div>
+            </div>
+          {% else %}
+            <!-- Empty State for both tabs -->
+            <div class="py-10 text-center">
+              <div class="text-5xl text-gray-300 mb-4">
+                <i class="fas fa-heart"></i>
+              </div>
+              <h3 class="text-lg font-medium text-gray-900 mb-1">No like activity yet</h3>
+              <p class="text-sm text-gray-500">
+                {% if is_owner %}
+                  Posts you like and likes on your posts will show up here
+                {% else %}
+                  {{ user_profile.username }} hasn't liked any posts or received likes yet
+                {% endif %}
+              </p>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+      
+      <!-- Travel Map Tab -->
+      <div x-show="activeTab === 'map'" x-cloak
+          x-transition:enter="transition ease-out duration-300"
+          x-transition:enter-start="opacity-0"
+          x-transition:enter-end="opacity-100"
+          x-transition:leave="transition ease-in duration-200"
+          x-transition:leave-start="opacity-100"
+          x-transition:leave-end="opacity-0"
+          @map-ready.window="window.travelMap?.invalidateSize()">
+        <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+          {% if user_profile.profile.visited_places or travel_locations %}
+            <div class="p-4 sm:p-6">
+              <!-- Map Header -->
+              <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg sm:text-xl font-semibold text-gray-900">Travel Map</h3>
+                {% if is_owner %}
+                  <a href="{% url 'edit_profile' %}" class="text-sm text-purple-600 hover:text-purple-800">
+                    <i class="fas fa-edit mr-1"></i> Edit Places
+                  </a>
+                {% endif %}
+              </div>
+              
+              <!-- Map Container - Enhanced for better responsiveness -->
+              <div class="h-64 sm:h-80 md:h-96 rounded-lg overflow-hidden mb-6 bg-gray-100 relative shadow-inner" id="map-container">
+                <div id="travel-map" class="w-full h-full"></div>
+                <div class="absolute bottom-3 right-3 bg-white rounded-lg shadow-md p-2 text-xs text-gray-500 z-10">
+                  <span>{{ travel_locations|length }} places visited</span>
+                </div>
+                <!-- Loading indicator -->
+                <div id="map-loading" class="absolute inset-0 flex items-center justify-center bg-gray-100 bg-opacity-80 z-20">
+                  <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-700"></div>
+                </div>
+              </div>
+              
+              <!-- Places List with Grouping -->
+              <div class="mt-4">
+                <h4 class="font-medium text-gray-700 mb-2">Visited Places</h4>
+                {% if travel_locations %}
+                  <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                    {% for place in travel_locations %}
+                      <div class="bg-gray-50 rounded-lg p-3 hover:bg-purple-50 transition duration-200 group cursor-pointer place-item" data-lat="{{ place.lat }}" data-lng="{{ place.lng }}">
+                        <div class="flex items-start">
+                          <div class="flex-shrink-0 w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 mr-2">
+                            <i class="fas fa-map-marker-alt"></i>
+                          </div>
+                          <div class="flex-1 min-w-0">
+                            <h5 class="font-medium text-gray-900 text-sm group-hover:text-purple-700 truncate">{{ place.name }}</h5>
+                            {% if place.date %}
+                              <p class="text-xs text-gray-500">
+                                    <i class="far fa-calendar mr-1"></i> 
+                                      <span class="format-date">{{ place.date }}</span>
+                              </p>
+                            {% endif %}
+                          </div>
+                        </div>
+                      </div>
+                    {% endfor %}
+                  </div>
+                {% else %}
+                  <p class="text-sm text-gray-500">No places added yet.</p>
+                {% endif %}
+              </div>
+            </div>
+          {% else %}
+            <!-- Empty State -->
+            <div class="p-8 text-center">
+              <div class="text-4xl sm:text-5xl text-gray-300 mb-4">
+                <i class="fas fa-map-marked-alt"></i>
+              </div>
+              <h3 class="text-lg font-medium text-gray-900 mb-1">No travel data yet</h3>
+              <p class="text-sm text-gray-500 mb-4">Track the places you've been to around the world.</p>
+              {% if is_owner %}
+                <a href="{% url 'edit_profile' %}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-full shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none">
+                  <i class="fas fa-map-pin mr-2"></i> Add Places You've Visited
+                </a>
+              {% endif %}
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for Profile Info with Animation -->
+  <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+       x-show="showModal" x-cloak
+       @click.self="showModal = false"
+       x-transition:enter="transition ease-out duration-300"
+       x-transition:enter-start="opacity-0"
+       x-transition:enter-end="opacity-100"
+       x-transition:leave="transition ease-in duration-200"
+       x-transition:leave-start="opacity-100"
+       x-transition:leave-end="opacity-0">
+    <div class="bg-white rounded-lg shadow-xl p-4 sm:p-6 w-full max-w-md transform transition-all"
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 transform scale-95"
+         x-transition:enter-end="opacity-100 transform scale-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100 transform scale-100"
+         x-transition:leave-end="opacity-0 transform scale-95">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg sm:text-xl font-bold text-gray-800">User Profile</h3>
+        <button @click="showModal = false" class="text-gray-400 hover:text-gray-500 focus:outline-none transition transform hover:rotate-90">
+          <i class="fas fa-times text-xl"></i>
+        </button>
+      </div>
+      
+      <div class="space-y-4">
+        <div class="flex items-start">
+          {% if user_profile.profile and user_profile.profile.avatar %}
+            <img src="{{ user_profile.profile.avatar.url }}" alt="Avatar" class="w-16 h-16 rounded-full object-cover mr-4">
+          {% else %}
+            <div class="w-16 h-16 rounded-full bg-purple-100 flex items-center justify-center text-purple-500 mr-4">
+              <i class="fa-solid fa-user text-2xl"></i>
+            </div>
+          {% endif %}
+          
+          <div>
+            <h4 class="font-semibold text-lg">
+              {% if user_profile.first_name or user_profile.last_name %}
+                {{ user_profile.first_name }} {{ user_profile.last_name }}
+              {% else %}
+                {{ user_profile.username }}
+              {% endif %}
+            </h4>
+            <p class="text-gray-500">@{{ user_profile.username }}</p>
+          </div>
+        </div>
+        
+        <div class="border-t border-gray-200 pt-4">
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <p class="text-sm text-gray-500">Member since</p>
+              <p class="font-medium">{{ user_profile.date_joined|date:"F j, Y" }}</p>
+            </div>
+            <div>
+              <p class="text-sm text-gray-500">Last active</p>
+              <p class="font-medium">{{ user_profile.last_login|date:"F j, Y" }}</p>
+            </div>
+          </div>
+        </div>
+        
+        {% if user_profile.email %}
+        <div class="pt-2">
+          <p class="text-sm text-gray-500">Email</p>
+          <p class="font-medium">{{ user_profile.email }}</p>
+        </div>
+        {% endif %}
+        
+        {% if user_profile.profile and user_profile.profile.bio %}
+        <div class="pt-2">
+          <p class="text-sm text-gray-500">Bio</p>
+          <p class="text-sm">{{ user_profile.profile.bio }}</p>
+        </div>
+        {% endif %}
+        
+        {% if is_owner %}
+        <div class="pt-2">
+          <a href="{% url 'edit_profile' %}" class="inline-flex w-full justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-full shadow-sm text-white bg-purple-600 hover:bg-purple-700 transition transform hover:-translate-y-0.5">
+            <i class="fas fa-user-edit mr-2"></i> Edit Profile
+          </a>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Scroll to Top Button with Smooth Animation -->
+  <button id="scrollToTop" class="fixed bottom-4 right-4 bg-purple-600 hover:bg-purple-700 text-white p-3 rounded-full opacity-0 z-50 shadow-md transition-all duration-300 transform hover:scale-110">
+    <i class="fa-solid fa-arrow-up"></i>
+  </button>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const loader = document.getElementById('loader');
+  const sentinel = document.getElementById('scroll-sentinel');
+  const notesContainer = document.getElementById('notes-container');
+  const scrollToTopBtn = document.getElementById('scrollToTop');
+  const mapLoadingIndicator = document.getElementById('map-loading');
+
+  let nextPage = "";
+  let hasNext = false;
+  let isLoading = false;
+  
+  function updatePagination() {
+    const pagination = document.getElementById('pagination');
+    if (pagination) {
+      nextPage = pagination.dataset.nextPage;
+      hasNext = pagination.dataset.hasNext === 'true';
+    } else {
+      nextPage = "";
+      hasNext = false;
+    }
+  }
+  
+  updatePagination();
+
+  if (scrollToTopBtn) {
+    window.addEventListener('scroll', function() {
+      if (window.pageYOffset > 300) {
+        scrollToTopBtn.style.opacity = '1';
+        scrollToTopBtn.style.pointerEvents = 'auto';
+      } else {
+        scrollToTopBtn.style.opacity = '0';
+        scrollToTopBtn.style.pointerEvents = 'none';
+      }
+    });
+
+    scrollToTopBtn.addEventListener('click', function() {
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
+    });
+  }
+
+  const observer = new IntersectionObserver((entries) => {
+    if (entries[0].isIntersecting && hasNext && !isLoading) {
+      loadMoreNotes();
+    }
+  }, { rootMargin: '200px', threshold: 0 });
+  
+  if (sentinel) {
+    observer.observe(sentinel);
+  }
+
+  function loadMoreNotes() {
+    if (!nextPage || isLoading) return;
+    
+    isLoading = true;
+    loader.classList.remove('hidden');
+    
+    fetch(`?page=${nextPage}`)
+      .then(response => response.text())
+      .then(html => {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        
+        const notesFeed = notesContainer.querySelector('#notes-feed');
+        if (notesFeed && doc.getElementById('notes-feed')) {
+          const newNotes = doc.getElementById('notes-feed').innerHTML;
+          notesFeed.insertAdjacentHTML('beforeend', newNotes);
+        }
+
+        const newPagination = doc.getElementById('pagination');
+        if (newPagination) {
+          nextPage = newPagination.dataset.nextPage;
+          hasNext = newPagination.dataset.hasNext === 'true';
+        } else {
+          nextPage = "";
+          hasNext = false;
+        }
+
+        loader.classList.add('hidden');
+        isLoading = false;
+        
+        if (window.initializeLikePostButtons) {
+          window.initializeLikePostButtons();
+        }
+        
+        const imageSliders = document.querySelectorAll('.image-slider');
+        if (imageSliders.length && window.initializeImageSliders) {
+          window.initializeImageSliders();
+        }
+      })
+      .catch(error => {
+        console.error("Error loading more notes:", error);
+        loader.classList.add('hidden');
+        isLoading = false;
+        if (window.showToast) {
+          window.showToast('Failed to load more posts', 'error');
+        }
+      });
+  }
+
+  let mapInitialized = false;
+  
+  function initMap() {
+    const mapContainer = document.getElementById('travel-map');
+    if (!mapContainer) return;
+    
+    if (mapLoadingIndicator) {
+      mapLoadingIndicator.style.display = 'flex';
+    }
+    
+    try {
+      let travelLocations = [];
+      const placeItems = document.querySelectorAll('.place-item');
+      placeItems.forEach(item => {
+        const lat = parseFloat(item.dataset.lat);
+        const lng = parseFloat(item.dataset.lng);
+        const name = item.querySelector('h5')?.textContent.trim() || 'Location';
+        
+        if (!isNaN(lat) && !isNaN(lng)) {
+          travelLocations.push({
+            lat: lat,
+            lng: lng,
+            name: name
+          });
+        }
+      });
+      
+      if (window.travelMap) {
+        window.travelMap.remove();
+      }
+      
+      window.travelMap = L.map('travel-map', {
+        zoomControl: true,
+        scrollWheelZoom: true,
+        dragging: true,
+        tap: true
+      });
+      
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        maxZoom: 19
+      }).addTo(window.travelMap);
+    
+      if (travelLocations.length > 0) {
+        const bounds = L.latLngBounds();
+        
+        travelLocations.forEach(location => {
+          const marker = L.marker([location.lat, location.lng], {
+            title: location.name,
+            alt: location.name,
+            riseOnHover: true
+          }).addTo(window.travelMap);
+          
+          marker.bindPopup(`<b>${location.name}</b>`);
+          
+          bounds.extend([location.lat, location.lng]);
+        });
+        
+        if (bounds.isValid()) {
+          window.travelMap.fitBounds(bounds, { 
+            padding: [30, 30],
+            maxZoom: 12
+          });
+        }
+      } else {
+        window.travelMap.setView([0, 0], 2);
+      }
+      
+      window.travelMap.invalidateSize(true);
+      mapInitialized = true;
+      
+      window.dispatchEvent(new CustomEvent('map-ready'));
+    } catch (error) {
+      console.error("Map initialization error:", error);
+    } finally {
+      if (mapLoadingIndicator) {
+        mapLoadingIndicator.style.display = 'none';
+      }
+    }
+  }
+  
+  const mapTab = document.querySelector('button[x-on\\:click*="activeTab = \'map\'"]');
+  if (mapTab) {
+    mapTab.addEventListener('click', function() {
+      setTimeout(initMap, 200);
+    });
+  }
+  
+  if (window.location.hash === '#map') {
+    setTimeout(function() {
+      try {
+        const alpineComponent = document.querySelector('[x-data*="activeTab"]');
+        if (alpineComponent && window.Alpine) {
+          window.Alpine.evaluate(alpineComponent, 'activeTab = "map"');
+        }
+      } catch (e) {
+        console.warn("Could not set active tab via Alpine.js:", e);
+      }
+      
+      setTimeout(initMap, 300);
+    }, 100);
+  }
+  
+  const placeItems = document.querySelectorAll('.place-item');
+  placeItems.forEach(item => {
+    item.addEventListener('click', function() {
+      if (!window.travelMap) {
+        initMap();
+        setTimeout(focusOnPlace, 500, this);
+        return;
+      }
+      
+      focusOnPlace(this);
+    });
+  });
+  
+  function focusOnPlace(placeElement) {
+    const lat = parseFloat(placeElement.dataset.lat);
+    const lng = parseFloat(placeElement.dataset.lng);
+    
+    if (!isNaN(lat) && !isNaN(lng)) {
+      window.travelMap.setView([lat, lng], 12, {
+        animate: true,
+        duration: 1
+      });
+      
+      window.travelMap.eachLayer(function(layer) {
+        if (layer instanceof L.Marker) {
+          const position = layer.getLatLng();
+          if (Math.abs(position.lat - lat) < 0.0001 && Math.abs(position.lng - lng) < 0.0001) {
+            layer.openPopup();
+          }
+        }
+      });
+    }
+  }
+  
+  window.addEventListener('resize', function() {
+    if (window.travelMap) {
+      window.travelMap.invalidateSize();
+    }
+  });
+  
+  document.addEventListener('initmap', function() {
+    setTimeout(initMap, 100);
+  });
+  document.querySelectorAll('.format-date').forEach(function(element) {
+      const dateString = element.textContent.trim();
+      if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        const [year, month, day] = dateString.split('-');
+        const date = new Date(year, month - 1, day);
+        const formattedDate = date.getDate() + ' ' + 
+                             date.toLocaleString('en-US', { month: 'long' }) + ', ' + 
+                             date.getFullYear();
+        element.textContent = formattedDate;
+      }
+    });
+});
+</script>
+{% endblock main %}
