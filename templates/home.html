@@ -1,0 +1,217 @@
+{% extends "components/base.html" %}
+{% load static %}
+{% block title %}Travel Community - Share Your Adventures{% endblock title %}
+
+{% block main %}
+<div class="max-w-xl mx-auto px-4">
+  <!-- Header Section (Twitter-Style) -->
+  <header class="sticky top-16 z-10 bg-white/80 backdrop-blur-sm border-b border-gray-100 py-3 px-4 mb-1">
+    <h1 class="text-xl font-bold">Home</h1>
+  </header>
+  
+  {% if user.is_authenticated %}
+  <!-- Compose Box (Twitter-Style) -->
+  <div class="bg-white border-b border-gray-200 p-4 mb-1">
+    <div class="flex items-start space-x-3">
+      <!-- User Avatar -->
+      <div class="flex-shrink-0">
+        {% if user.profile.avatar %}
+          <img src="{{ user.profile.avatar.url }}" alt="{{ user.username }}" class="w-10 h-10 rounded-full object-cover">
+        {% else %}
+          <div class="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-500">
+            <i class="fas fa-user"></i>
+          </div>
+        {% endif %}
+      </div>
+      
+      <!-- Compose Input -->
+      <div class="flex-1">
+        <a href="{% url 'create_note' %}" class="block w-full text-gray-500 text-lg py-2 px-3 rounded-full border border-gray-200 hover:bg-gray-50 transition">
+          What's happening in your travels?
+        </a>
+        
+        <div class="flex justify-between mt-3">
+          <div class="flex space-x-1 text-purple-500">
+            <button class="p-2 rounded-full hover:bg-purple-50 transition">
+              <i class="far fa-image"></i>
+            </button>
+            <button class="p-2 rounded-full hover:bg-purple-50 transition">
+              <i class="fas fa-map-marker-alt"></i>
+            </button>
+          </div>
+          
+          <a href="{% url 'create_note' %}" class="px-4 py-1.5 bg-purple-600 text-white rounded-full font-medium hover:bg-purple-700 transition">
+            Post
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+  
+  {% if notes %}
+    <div class="divide-y divide-gray-100">
+      {% for note in notes %}
+        <article class="bg-white p-4 hover:bg-gray-50 transition cursor-pointer">
+          <div class="flex space-x-3">
+            <!-- User Avatar -->
+            <a href="{% url 'profile' username=note.author.username %}" class="flex-shrink-0">
+              {% if note.author.profile.avatar %}
+                <img src="{{ note.author.profile.avatar.url }}" alt="{{ note.author.username }}" class="w-10 h-10 rounded-full object-cover">
+              {% else %}
+                <div class="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-500">
+                  <i class="fas fa-user"></i>
+                </div>
+              {% endif %}
+            </a>
+            
+            <!-- Post Content -->
+            <div class="flex-1 min-w-0">
+              <!-- Post Header -->
+              <div class="flex items-baseline space-x-1">
+                <a href="{% url 'profile' username=note.author.username %}" class="font-bold text-gray-900 hover:underline">
+                  {{ note.author.username }}
+                </a>
+                <span class="text-gray-500 text-sm">·</span>
+                  <time class="text-gray-500 text-sm" datetime="{{ note.created_at|date:'c' }}">{{ note.created_at|date:"j M, Y" }} 
+                    <span class="text-purple-400">•</span> {{ note.created_at|date:"H:i:s" }}</time>
+              </div>
+              
+              <!-- Post Title & Content -->
+              <a href="{% url 'note_detail' note_id=note.id %}" class="block">
+                <h2 class="font-bold text-gray-900 mt-1">{{ note.title }}</h2>
+                <p class="text-gray-800 mt-1">
+                  {{ note.content|truncatechars:200 }}
+                </p>
+              </a>
+              
+              <!-- Post Media -->
+              {% if note.images.all %}
+                <a href="{% url 'note_detail' note_id=note.id %}" class="block mt-2">
+                  <div class="overflow-hidden rounded-xl">
+                    {% with first_image=note.images.first %}
+                      <div class="relative aspect-[16/9]">
+                        <img src="{{ first_image.image.url }}" alt="{{ note.title }}" class="w-full h-full object-cover">
+                        {% if note.images.count > 1 %}
+                          <div class="absolute bottom-2 right-2 bg-black bg-opacity-60 text-white text-xs py-1 px-2 rounded-full">
+                            +{{ note.images.count|add:"-1" }} more
+                          </div>
+                        {% endif %}
+                      </div>
+                    {% endwith %}
+                  </div>
+                </a>
+              {% endif %}
+              
+              <!-- Location Badge -->
+              {% if note.location %}
+                <div class="mt-2">
+                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                    <i class="fas fa-map-marker-alt mr-1"></i>
+                    {{ note.location }}
+                  </span>
+                </div>
+              {% endif %}
+              
+              <!-- Post Actions - Twitter Style -->
+              <div class="flex justify-between mt-3 text-gray-500 max-w-md">
+                <!-- Comment Button -->
+                <a href="{% url 'note_detail' note_id=note.id %}" class="flex items-center group">
+                  <div class="p-2 rounded-full group-hover:bg-blue-50 group-hover:text-blue-500 transition-colors">
+                    <i class="far fa-comment"></i>
+                  </div>
+                  {% if note.get_comments_count > 0 %}
+                    <span class="text-sm ml-1 group-hover:text-blue-500">{{ note.get_comments_count }}</span>
+                  {% endif %}
+                </a>
+                
+                <!-- Retweet Button (Share as repost) -->
+                <button class="flex items-center group">
+                  <div class="p-2 rounded-full group-hover:bg-green-50 group-hover:text-green-500 transition-colors">
+                    <i class="fas fa-retweet"></i>
+                  </div>
+                </button>
+                
+                <!-- Like Button -->
+                <button class="flex items-center group like-post-button" 
+                        data-note-id="{{ note.id }}"
+                        data-liked="{% if request.user.is_authenticated and request.user in note.likes.all %}true{% else %}false{% endif %}">
+                  <div class="p-2 rounded-full group-hover:bg-red-50 {% if request.user.is_authenticated and request.user in note.likes.all %}text-red-500 bg-red-50{% endif %} group-hover:text-red-500 transition-colors">
+                    <i class="{% if request.user.is_authenticated and request.user in note.likes.all %}fas{% else %}far{% endif %} fa-heart"></i>
+                  </div>
+                  {% if note.likes.count > 0 %}
+                    <span class="text-sm ml-1 {% if request.user.is_authenticated and request.user in note.likes.all %}text-red-500{% endif %} group-hover:text-red-500 like-count" data-note-id="{{ note.id }}">{{ note.likes.count }}</span>
+                  {% endif %}
+                </button>
+                
+                <!-- Share Button -->
+                <div class="relative" x-data="{ shareOpen: false }">
+                  <button @click="shareOpen = !shareOpen" class="p-2 rounded-full hover:bg-blue-50 hover:text-blue-500 transition-colors">
+                    <i class="fas fa-share-alt"></i>
+                  </button>
+                  <div x-show="shareOpen" x-cloak @click.away="shareOpen = false"
+                       class="absolute right-0 bottom-10 w-48 bg-white rounded-md shadow-lg py-1 z-10 border border-gray-100"
+                       x-transition:enter="transition ease-out duration-100"
+                       x-transition:enter-start="transform opacity-0 scale-95"
+                       x-transition:enter-end="transform opacity-100 scale-100"
+                       x-transition:leave="transition ease-in duration-75"
+                       x-transition:leave-start="transform opacity-100 scale-100"
+                       x-transition:leave-end="transform opacity-0 scale-95">
+                    <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                      <i class="fab fa-twitter mr-2"></i> Share on Twitter
+                    </a>
+                    <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                      <i class="fab fa-facebook mr-2"></i> Share on Facebook
+                    </a>
+                    <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                      <i class="fas fa-link mr-2"></i> Copy Link
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+    
+    <!-- Twitter-Style Pagination -->
+    {% if notes.has_next %}
+      <div class="py-4 text-center">
+        <a href="?page={{ notes.next_page_number }}" 
+           class="inline-block px-4 py-2 text-purple-600 hover:bg-purple-50 rounded-full transition">
+          Show more
+        </a>
+      </div>
+    {% endif %}
+    
+  {% else %}
+    <!-- Empty State - Twitter Style -->
+    <div class="p-12 text-center">
+      <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-purple-100 text-purple-500 mb-4">
+        <i class="fas fa-hiking text-2xl"></i>
+      </div>
+      <h2 class="text-xl font-bold text-gray-900 mb-2">Welcome to Travel Feed</h2>
+      <p class="text-gray-600 mb-6">When you follow people, you'll see their posts here.</p>
+      {% if request.user.is_authenticated %}
+        <a href="{% url 'create_note' %}" class="inline-flex items-center px-5 py-2 border border-transparent text-base font-medium rounded-full shadow-sm text-white bg-purple-600 hover:bg-purple-700">
+          <i class="fas fa-plus mr-2"></i> Create Your First Post
+        </a>
+      {% else %}
+        <a href="{% url 'login' %}" class="inline-flex items-center px-5 py-2 border border-transparent text-base font-medium rounded-full shadow-sm text-white bg-purple-600 hover:bg-purple-700">
+          <i class="fas fa-sign-in-alt mr-2"></i> Log in to Join
+        </a>
+      {% endif %}
+    </div>
+  {% endif %}
+  
+  <!-- Floating Create Button - Mobile Only -->
+  {% if user.is_authenticated %}
+  <div class="fixed right-6 bottom-6 md:hidden z-30">
+    <a href="{% url 'create_note' %}" class="flex items-center justify-center w-14 h-14 rounded-full bg-purple-600 text-white shadow-lg hover:bg-purple-700 transition">
+      <i class="fas fa-plus text-xl"></i>
+    </a>
+  </div>
+  {% endif %}
+</div>
+{% endblock main %}
