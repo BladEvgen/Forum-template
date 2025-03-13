@@ -1,0 +1,205 @@
+{% extends "components/base.html" %}
+{% load static %}
+{% block title %}Login | My Travel Blog{% endblock title %}
+
+{% block main %}
+<div class="min-h-[80vh] flex items-center justify-center px-4 sm:px-6 lg:px-8 py-12 bg-gray-50">
+  <div class="w-full max-w-md">
+    <!-- Card Container -->
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+      <!-- Login Header -->
+      <div class="bg-gradient-to-r from-purple-900 to-purple-800 px-6 py-8 text-center">
+        <h2 class="text-2xl font-bold text-white">Login</h2>
+        <p class="text-purple-200 mt-2">Access your travel account</p>
+      </div>
+      
+      <!-- Login Icon -->
+      <div class="flex justify-center -mt-8 mb-2">
+        <div class="inline-flex items-center justify-center h-16 w-16 rounded-full bg-white shadow-sm border-4 border-purple-200">
+          <i class="fas fa-user-circle text-purple-600 text-3xl"></i>
+        </div>
+      </div>
+      
+      <div class="px-6 pt-4">
+        <div class="text-center mb-6">
+          <p class="text-sm text-gray-600">Please enter your credentials to log in</p>
+        </div>
+      </div>
+      
+      <!-- Login Form -->
+      <div class="px-6 pb-8">
+        <form method="post" action="{% url 'login' %}" class="space-y-6" id="login-form" x-data="{ showPassword: false }">
+          {% csrf_token %}
+          
+          <!-- Username Field -->
+          <div>
+            <label for="username" class="block text-sm font-medium text-gray-700">Username</label>
+            <div class="mt-1 relative rounded-md shadow-sm">
+              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <i class="fas fa-user text-gray-400"></i>
+              </div>
+              <input id="username" name="username" type="text" required class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-transparent" placeholder="Enter username" autocomplete="username" autofocus>
+            </div>
+          </div>
+          
+          <!-- Password Field -->
+          <div>
+            <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
+            <div class="mt-1 relative rounded-md shadow-sm">
+              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <i class="fas fa-lock text-gray-400"></i>
+              </div>
+              <input id="password" name="password" :type="showPassword ? 'text' : 'password'" required class="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-transparent" placeholder="Enter password" autocomplete="current-password">
+              <div class="absolute inset-y-0 right-0 pr-3 flex items-center">
+                <button type="button" @click="showPassword = !showPassword" class="text-gray-400 hover:text-gray-500 focus:outline-none">
+                  <i class="fas" :class="showPassword ? 'fa-eye-slash' : 'fa-eye'"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Submit Button -->
+          <div>
+            <button type="submit" id="login-button" class="group relative w-full flex justify-center py-3 px-4 border border-transparent rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors">
+              <span class="absolute left-0 inset-y-0 flex items-center pl-3">
+                <i class="fas fa-sign-in-alt"></i>
+              </span>
+              <span>Login</span>
+              <span class="loading-icon ml-2 hidden">
+                <i class="fas fa-circle-notch fa-spin"></i>
+              </span>
+            </button>
+          </div>
+          
+          <!-- Password Reset Button -->
+          <div class="flex justify-center">
+            <a href="{% url 'password_reset_request' %}" class="group relative flex justify-center py-2 px-4 border border-purple-300 rounded-md text-purple-700 bg-white hover:bg-purple-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors text-sm">
+              <i class="fas fa-key mr-2"></i>
+              <span>Forgot your password?</span>
+            </a>
+          </div>
+        </form>
+        
+        <!-- Register link -->
+        <div class="mt-6 text-center">
+          <p class="text-sm text-gray-600">
+            Don't have an account?
+            <a href="{% url 'register' %}" class="font-medium text-purple-600 hover:text-purple-500 transition-colors">
+              Register now
+            </a>
+          </p>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Security Notice -->
+    <div class="mt-6 flex justify-center items-center text-xs text-gray-500">
+      <i class="fas fa-shield-alt mr-2 text-purple-400"></i>
+      <span>Secure connection. Your information is protected.</span>
+    </div>
+  </div>
+</div>
+{% endblock main %}
+
+{% block extra_scripts %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const usernameInput = document.getElementById('username');
+    const passwordInput = document.getElementById('password');
+    const form = document.getElementById('login-form');
+    const loginButton = document.getElementById('login-button');
+    const loadingIcon = loginButton.querySelector('.loading-icon');
+    
+    sessionStorage.removeItem('username');
+    localStorage.removeItem('username');
+    
+    usernameInput.value = '';
+    passwordInput.value = '';
+    
+    usernameInput.focus();
+    
+    form.addEventListener('submit', function(event) {
+      let valid = true;
+      
+      usernameInput.classList.remove('border-red-500', 'ring-red-500');
+      passwordInput.classList.remove('border-red-500', 'ring-red-500');
+      
+      if (!usernameInput.value.trim()) {
+        usernameInput.classList.add('border-red-500', 'ring-red-500');
+        valid = false;
+      }
+      
+      if (!passwordInput.value.trim()) {
+        passwordInput.classList.add('border-red-500', 'ring-red-500');
+        valid = false;
+      }
+      
+      if (!valid) {
+        event.preventDefault();
+        showToast('Please fill in all required fields', 'error');
+        return;
+      }      
+
+      loginButton.disabled = true;
+      loginButton.classList.add('bg-purple-500');
+      loadingIcon.classList.remove('hidden');
+    });
+    
+    function showToast(message, type = 'error') {
+      const toastContainer = document.getElementById('toast-container');
+      toastContainer.style.display = 'flex';
+      
+      const toast = document.createElement('div');
+      let bgColor, borderColor, textColor, icon;
+      
+      if (type === 'error') {
+        bgColor = 'bg-red-100';
+        borderColor = 'border-red-500';
+        textColor = 'text-red-700';
+        icon = 'fa-exclamation-circle';
+      } else {
+        bgColor = 'bg-green-100';
+        borderColor = 'border-green-500';
+        textColor = 'text-green-700';
+        icon = 'fa-check-circle';
+      }
+      
+      toast.className = `${bgColor} border-l-4 ${borderColor} ${textColor} p-4 rounded shadow-md animate-fadeIn`;
+      toast.innerHTML = `
+        <div class="flex">
+          <div class="flex-shrink-0">
+            <i class="fas ${icon}"></i>
+          </div>
+          <div class="ml-3">
+            <p class="text-sm font-medium">${message}</p>
+          </div>
+          <div class="ml-auto pl-3">
+            <button class="inline-flex focus:outline-none">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+        </div>
+      `;
+      
+      toastContainer.appendChild(toast);
+      
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'transition-opacity', 'duration-300');
+        setTimeout(() => {
+          toast.remove();
+          if (toastContainer.childElementCount === 0) {
+            toastContainer.style.display = 'none';
+          }
+        }, 300);
+      }, 5000);
+      
+      toast.querySelector('button').addEventListener('click', () => {
+        toast.remove();
+        if (toastContainer.childElementCount === 0) {
+          toastContainer.style.display = 'none';
+        }
+      });
+    }
+  });
+</script>
+{% endblock extra_scripts %}

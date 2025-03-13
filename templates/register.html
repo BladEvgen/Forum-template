@@ -1,0 +1,408 @@
+{% extends "components/base.html" %}
+{% load static %}
+{% block title %}Register | My Travel Blog{% endblock title %}
+
+{% block main %}
+<div class="min-h-[80vh] flex items-center justify-center px-4 sm:px-6 lg:px-8 py-12 bg-gray-50">
+  <div class="w-full max-w-md">
+    <!-- Card Container -->
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+      <!-- Register Header -->
+      <div class="bg-gradient-to-r from-purple-900 to-purple-800 px-6 py-8 text-center">
+        <h2 class="text-2xl font-bold text-white">Create Account</h2>
+        <p class="text-purple-200 mt-2">Join our travel community</p>
+      </div>
+      
+      <!-- Register Icon -->
+      <div class="flex justify-center -mt-8 mb-2">
+        <div class="inline-flex items-center justify-center h-16 w-16 rounded-full bg-white shadow-sm border-4 border-purple-200">
+          <i class="fas fa-user-plus text-purple-600 text-3xl"></i>
+        </div>
+      </div>
+      
+      <!-- Error Messages -->
+      {% if error %}
+        <div class="mx-6 mb-4">
+          <div class="bg-red-50 border-l-4 border-red-500 p-4 mb-2 animate-fadeIn">
+            <div class="flex">
+              <div class="flex-shrink-0">
+                <i class="fas fa-exclamation-circle text-red-500"></i>
+              </div>
+              <div class="ml-3">
+                <p class="text-sm text-red-700">{{ error }}</p>
+              </div>
+              <div class="ml-auto pl-3">
+                <button class="inline-flex text-red-500 focus:outline-none error-close">
+                  <i class="fas fa-times"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      {% endif %}
+      
+      <!-- Register Form -->
+      <div class="px-6 pb-8" x-data="{ 
+        showPassword: false, 
+        showConfirmPassword: false,
+        password: '',
+        confirmPassword: '',
+        username: '',
+        email: '',
+        firstName: '',
+        lastName: '',
+        passwordScore: 0,
+        passwordLength: false,
+        hasLower: false,
+        hasUpper: false,
+        hasNumber: false,
+        hasSymbol: false,
+        passwordsMatch: false,
+        checkPasswordStrength() {
+          this.passwordLength = this.password.length >= 8;
+          this.hasLower = /[a-z]/.test(this.password);
+          this.hasUpper = /[A-Z]/.test(this.password);
+          this.hasNumber = /[0-9]/.test(this.password);
+          this.hasSymbol = /[^A-Za-z0-9]/.test(this.password);
+          
+          let score = 0;
+          if (this.passwordLength) score += 1;
+          if (this.hasLower) score += 1;
+          if (this.hasUpper) score += 1;
+          if (this.hasNumber) score += 1;
+          if (this.hasSymbol) score += 1;
+          
+          this.passwordScore = score;
+          
+          this.passwordsMatch = this.password === this.confirmPassword && this.password !== '';
+        }
+      }">
+        <form method="post" action="{% url 'register' %}" class="space-y-6" id="register-form" @submit="$event.target.classList.add('was-validated')">
+          {% csrf_token %}
+          
+          <!-- Account Information Section -->
+          <div class="border-b border-gray-200 pb-4">
+            <h3 class="text-lg font-medium text-gray-700 mb-4">Account Information</h3>
+            
+            <!-- Username Field - Required -->
+            <div class="mb-4">
+              <label for="username" class="block text-sm font-medium text-gray-700">
+                Username <span class="text-red-500">*</span>
+              </label>
+              <div class="mt-1 relative rounded-md shadow-sm">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <i class="fas fa-user text-gray-400"></i>
+                </div>
+                <input 
+                  type="text" 
+                  id="username" 
+                  name="username" 
+                  x-model="username"
+                  class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-transparent" 
+                  placeholder="Choose a username" 
+                  required
+                >
+              </div>
+            </div>
+            
+            <!-- Email Field - Required -->
+            <div class="mb-4">
+              <label for="email" class="block text-sm font-medium text-gray-700">
+                Email <span class="text-red-500">*</span>
+              </label>
+              <div class="mt-1 relative rounded-md shadow-sm">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <i class="fas fa-envelope text-gray-400"></i>
+                </div>
+                <input 
+                  type="email" 
+                  id="email" 
+                  name="email" 
+                  x-model="email"
+                  class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-transparent" 
+                  placeholder="Your email address" 
+                  required
+                >
+              </div>
+            </div>
+          </div>
+          
+          <!-- Personal Information Section -->
+          <div class="border-b border-gray-200 pb-4">
+            <h3 class="text-lg font-medium text-gray-700 mb-4">Personal Information</h3>
+            
+            <!-- Name Fields - Optional -->
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label for="first_name" class="block text-sm font-medium text-gray-700">
+                  First Name
+                </label>
+                <div class="mt-1 relative rounded-md shadow-sm">
+                  <input 
+                    type="text" 
+                    id="first_name" 
+                    name="first_name" 
+                    x-model="firstName"
+                    class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-transparent" 
+                    placeholder="First name"
+                  >
+                </div>
+              </div>
+              <div>
+                <label for="last_name" class="block text-sm font-medium text-gray-700">
+                  Last Name
+                </label>
+                <div class="mt-1 relative rounded-md shadow-sm">
+                  <input 
+                    type="text" 
+                    id="last_name" 
+                    name="last_name" 
+                    x-model="lastName"
+                    class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-transparent" 
+                    placeholder="Last name"
+                  >
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Password Section -->
+          <div>
+            <h3 class="text-lg font-medium text-gray-700 mb-4">Password</h3>
+            
+            <!-- Password Field -->
+            <div class="mb-4">
+              <label for="password" class="block text-sm font-medium text-gray-700">
+                Password <span class="text-red-500">*</span>
+              </label>
+              <div class="mt-1 relative rounded-md shadow-sm">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <i class="fas fa-lock text-gray-400"></i>
+                </div>
+                <input 
+                  :type="showPassword ? 'text' : 'password'" 
+                  id="password" 
+                  name="password" 
+                  x-model="password"
+                  @input="checkPasswordStrength"
+                  pattern="^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[#?!@$%^&*-]).{8,}$"
+                  title="Must contain at least 8 characters, including uppercase, lowercase, number, and special character"
+                  class="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-transparent" 
+                  placeholder="Create a password" 
+                  required
+                >
+                <div class="absolute inset-y-0 right-0 pr-3 flex items-center">
+                  <button type="button" @click="showPassword = !showPassword" class="text-gray-400 hover:text-gray-500 focus:outline-none">
+                    <i class="fas" :class="showPassword ? 'fa-eye-slash' : 'fa-eye'"></i>
+                  </button>
+                </div>
+              </div>
+              
+              <!-- Password Strength Meter -->
+              <div class="mt-2">
+                <div class="w-full bg-gray-200 rounded-full h-2.5 mb-2">
+                  <div class="h-2.5 rounded-full transition-all duration-300" 
+                       :class="{
+                         'bg-red-500': passwordScore === 1,
+                         'bg-orange-500': passwordScore === 2,
+                         'bg-yellow-500': passwordScore === 3,
+                         'bg-blue-500': passwordScore === 4,
+                         'bg-green-500': passwordScore === 5
+                       }"
+                       :style="'width: ' + (passwordScore * 20) + '%'"></div>
+                </div>
+                
+                <!-- Password Requirements -->
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                  <div class="flex items-center" :class="passwordLength ? 'text-green-600' : 'text-gray-500'">
+                    <i class="fas mr-1" :class="passwordLength ? 'fa-check-circle' : 'fa-circle'"></i>
+                    At least 8 characters
+                  </div>
+                  <div class="flex items-center" :class="hasLower ? 'text-green-600' : 'text-gray-500'">
+                    <i class="fas mr-1" :class="hasLower ? 'fa-check-circle' : 'fa-circle'"></i>
+                    One lowercase letter
+                  </div>
+                  <div class="flex items-center" :class="hasUpper ? 'text-green-600' : 'text-gray-500'">
+                    <i class="fas mr-1" :class="hasUpper ? 'fa-check-circle' : 'fa-circle'"></i>
+                    One uppercase letter
+                  </div>
+                  <div class="flex items-center" :class="hasNumber ? 'text-green-600' : 'text-gray-500'">
+                    <i class="fas mr-1" :class="hasNumber ? 'fa-check-circle' : 'fa-circle'"></i>
+                    One number
+                  </div>
+                  <div class="flex items-center" :class="hasSymbol ? 'text-green-600' : 'text-gray-500'">
+                    <i class="fas mr-1" :class="hasSymbol ? 'fa-check-circle' : 'fa-circle'"></i>
+                    One special character
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Confirm Password Field -->
+            <div>
+              <label for="confirm_password" class="block text-sm font-medium text-gray-700">
+                Confirm Password <span class="text-red-500">*</span>
+              </label>
+              <div class="mt-1 relative rounded-md shadow-sm">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <i class="fas fa-lock text-gray-400"></i>
+                </div>
+                <input 
+                  :type="showConfirmPassword ? 'text' : 'password'" 
+                  id="confirm_password" 
+                  name="confirm_password" 
+                  x-model="confirmPassword"
+                  @input="checkPasswordStrength"
+                  class="block w-full pl-10 pr-10 py-2 border" 
+                  :class="confirmPassword ? (passwordsMatch ? 'border-green-300 focus:ring-green-600' : 'border-red-300 focus:ring-red-600') : 'border-gray-300 focus:ring-purple-600'"
+                  placeholder="Confirm your password" 
+                  required
+                >
+                <div class="absolute inset-y-0 right-0 pr-3 flex items-center">
+                  <button type="button" @click="showConfirmPassword = !showConfirmPassword" class="text-gray-400 hover:text-gray-500 focus:outline-none">
+                    <i class="fas" :class="showConfirmPassword ? 'fa-eye-slash' : 'fa-eye'"></i>
+                  </button>
+                </div>
+              </div>
+              <div x-show="confirmPassword && !passwordsMatch" class="text-xs text-red-600 mt-1 flex items-center">
+                <i class="fas fa-exclamation-circle mr-1"></i>
+                Passwords do not match
+              </div>
+              <div x-show="confirmPassword && passwordsMatch" class="text-xs text-green-600 mt-1 flex items-center">
+                <i class="fas fa-check-circle mr-1"></i>
+                Passwords match
+              </div>
+            </div>
+          </div>
+          
+          <!-- Terms and Conditions -->
+          <div class="flex items-start">
+            <div class="flex items-center h-5">
+              <input id="terms" name="terms" type="checkbox" required class="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded">
+            </div>
+            <div class="ml-3 text-sm">
+              <label for="terms" class="font-medium text-gray-700">I agree to the 
+                <a href="#" class="text-purple-600 hover:text-purple-500">Terms of Service</a> and 
+                <a href="#" class="text-purple-600 hover:text-purple-500">Privacy Policy</a>
+              </label>
+            </div>
+          </div>
+          
+          <!-- Submit Button -->
+          <div>
+            <button 
+              type="submit" 
+              class="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors"
+              :disabled="!passwordLength || !hasLower || !hasUpper || !hasNumber || !hasSymbol || !passwordsMatch || !username || !email"
+              :class="{'opacity-60 cursor-not-allowed': !passwordLength || !hasLower || !hasUpper || !hasNumber || !hasSymbol || !passwordsMatch || !username || !email}"
+            >
+              <span>Create Account</span>
+              <span class="loading-icon ml-2 hidden">
+                <i class="fas fa-circle-notch fa-spin"></i>
+              </span>
+            </button>
+          </div>
+        </form>
+        
+        <!-- Login Link -->
+        <div class="mt-6 text-center">
+          <p class="text-sm text-gray-600">
+            Already have an account?
+            <a href="{% url 'login' %}" class="font-medium text-purple-600 hover:text-purple-500 transition-colors">
+              Log in
+            </a>
+          </p>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Security Notice -->
+    <div class="mt-6 flex justify-center items-center text-xs text-gray-500">
+      <i class="fas fa-shield-alt mr-2 text-purple-400"></i>
+      <span>Your information is securely encrypted</span>
+    </div>
+  </div>
+</div>
+{% endblock main %}
+
+{% block extra_scripts %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('username').focus();
+    
+    document.querySelectorAll('.error-close').forEach(button => {
+      button.addEventListener('click', function() {
+        this.closest('div.bg-red-50').remove();
+      });
+    });
+    
+    const form = document.getElementById('register-form');
+    const submitButton = form.querySelector('button[type="submit"]');
+    const loadingIcon = submitButton.querySelector('.loading-icon');
+    const passwordInput = document.getElementById('password');
+    
+    function validatePassword(password) {
+      const regex = /^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[#?!@$%^&*-]).{8,}$/;
+      return regex.test(password);
+    }
+    
+    form.addEventListener('submit', function(event) {
+      if (!validatePassword(passwordInput.value)) {
+        event.preventDefault();
+        
+        const toastContainer = document.getElementById('toast-container');
+        toastContainer.style.display = 'flex';
+        
+        const toast = document.createElement('div');
+        toast.className = 'bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded shadow-md animate-fadeIn';
+        toast.innerHTML = `
+          <div class="flex">
+            <div class="flex-shrink-0">
+              <i class="fas fa-exclamation-circle"></i>
+            </div>
+            <div class="ml-3">
+              <p class="text-sm font-medium">Password must contain at least 8 characters, including uppercase, lowercase, number, and special character.</p>
+            </div>
+            <div class="ml-auto pl-3">
+              <button class="inline-flex text-red-500 focus:outline-none">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+          </div>
+        `;
+        
+        toastContainer.appendChild(toast);
+        
+        setTimeout(() => {
+          toast.classList.add('opacity-0', 'transition-opacity', 'duration-300');
+          setTimeout(() => {
+            toast.remove();
+            if (toastContainer.childElementCount === 0) {
+              toastContainer.style.display = 'none';
+            }
+          }, 300);
+        }, 5000);
+        
+        toast.querySelector('button').addEventListener('click', () => {
+          toast.remove();
+          if (toastContainer.childElementCount === 0) {
+            toastContainer.style.display = 'none';
+          }
+        });
+        
+        return false;
+      }
+      
+      const confirmPasswordInput = document.getElementById('confirm_password');
+      if (passwordInput.value !== confirmPasswordInput.value) {
+        event.preventDefault();
+        return false;
+      }
+      
+      submitButton.disabled = true;
+      submitButton.classList.add('opacity-70');
+      loadingIcon.classList.remove('hidden');
+    });
+  });
+</script>
+{% endblock extra_scripts %}
