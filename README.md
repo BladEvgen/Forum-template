@@ -33,7 +33,7 @@ This project is a Django-based forum template providing a foundation for buildin
 ## Project Structure
 
 The project is structured as a standard Django project:
-
+```
 Forum-template/
 ├── django_app/          # Django application containing the forum logic
 │   ├── migrations/     # Database migrations
@@ -70,7 +70,7 @@ Forum-template/
 ├── manage.py           # Django management script
 ├── README.md           # This file
 ├── requirements.txt    # Python dependencies
-
+```
 
 ## Setup and Installation
 
